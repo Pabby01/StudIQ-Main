@@ -1,8 +1,15 @@
 import OpenAI from 'openai';
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Create OpenAI client lazily to ensure environment variables are loaded
+export const getOpenAIClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY environment variable is not set');
+  }
+  return new OpenAI({
+    apiKey: apiKey,
+  });
+};
 
 export const FINANCIAL_TUTOR_SYSTEM_PROMPT = `You are StudIQ's AI Financial Tutor, designed specifically for university students. Your role is to:
 

@@ -66,11 +66,35 @@ export default function AITutor() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error responses from the API
+        let errorContent = "I'm sorry, I'm having trouble right now. ";
+        
+        if (data.error && data.details) {
+          if (data.error.includes('API key not configured')) {
+            errorContent = "🔑 OpenAI API key is not configured. Please add your OPENAI_API_KEY to the environment variables and restart the server.";
+          } else if (data.error.includes('Invalid OpenAI API key')) {
+            errorContent = "🔑 The OpenAI API key appears to be invalid. Please check that your API key is correct and starts with 'sk-'.";
+          } else if (data.error.includes('quota exceeded')) {
+            errorContent = "💳 OpenAI API quota has been exceeded. Please check your billing and usage limits.";
+          } else {
+            errorContent = `❌ ${data.error}${data.details ? ` - ${data.details}` : ''}`;
+          }
+        } else {
+          errorContent = "❌ Failed to get response from the AI tutor. Please try again.";
+        }
+
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: errorContent,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        return;
+      }
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -85,7 +109,7 @@ export default function AITutor() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm sorry, I'm having trouble connecting right now. Please make sure your OpenAI API key is configured and try again.",
+        content: "🌐 Network error: Unable to connect to the AI tutor. Please check your internet connection and try again.",
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

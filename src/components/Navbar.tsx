@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { WalletConnectButton } from './WalletConnectButton';
+import WalletConnectButton from './WalletConnectButton';
 import { Menu, Home, Brain, Coins, Store } from 'lucide-react';
 
 const navigation = [

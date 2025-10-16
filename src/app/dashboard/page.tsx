@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import OnboardingFlow from '@/components/OnboardingFlow';
+import AuthWrapper from '@/components/AuthWrapper';
+import AuthErrorHandler from '@/components/AuthErrorHandler';
 import { DEFAULT_USER_REWARDS } from '@/lib/data';
 import { 
   Wallet, 
@@ -15,47 +18,46 @@ import {
   Award, 
   DollarSign,
   ArrowUpRight,
-  Star
+  Star,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
+import { AuthError } from '@/components/AuthErrorHandler';
 
 export default function Dashboard() {
-  // Try to use Privy, but handle gracefully if not available
-  let authenticated = true; // Default to true for demo mode
-  
-  try {
-    const privyData = usePrivy();
-    authenticated = privyData.authenticated;
-  } catch {
-    // Privy not available, use demo mode
-    authenticated = true;
-  }
-  // Try to use wallets hook, but handle gracefully if not available
-  let wallets: { address: string; type: string }[] = [];
-  
-  try {
-    const walletsData = useWallets();
-    wallets = walletsData.wallets;
-  } catch {
-    // Wallets hook not available, use demo data
-    wallets = [];
+  const { authenticated, ready } = usePrivy();
+  const { wallets } = useWallets();
+
+  const [authError, setAuthError] = useState<AuthError | null>(null);
+
+  // Show loading while Privy is initializing
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
+  // Show onboarding if not authenticated
   if (!authenticated) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="flex items-center justify-center min-h-[80vh]">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <CardTitle>Connect Your Wallet</CardTitle>
-              <CardDescription>
-                Please connect your wallet to access your dashboard
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <OnboardingFlow />
         </div>
         <Footer />
+        {authError && (
+          <AuthErrorHandler 
+            error={authError}
+            onRetry={() => setAuthError(null)}
+          />
+        )}
       </div>
     );
   }
@@ -76,10 +78,11 @@ export default function Dashboard() {
   const rewards = DEFAULT_USER_REWARDS;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <AuthWrapper>
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
@@ -296,6 +299,7 @@ export default function Dashboard() {
       </div>
 
       <Footer />
-    </div>
+      </div>
+    </AuthWrapper>
   );
 }
