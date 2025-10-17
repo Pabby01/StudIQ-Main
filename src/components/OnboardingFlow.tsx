@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { userProfileManager, formatDisplayName } from '@/lib/user-data';
 import { 
   Wallet, 
   Mail, 
@@ -16,7 +18,8 @@ import {
   Loader2,
   User,
   Key,
-  Globe
+  Globe,
+  UserPlus
 } from 'lucide-react';
 
 interface OnboardingFlowProps {
@@ -37,10 +40,12 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
   
   const { wallets } = useWallets();
   
-  const [currentStep, setCurrentStep] = useState<'welcome' | 'auth' | 'wallet' | 'complete'>('welcome');
+  const [currentStep, setCurrentStep] = useState<'welcome' | 'auth' | 'profile' | 'wallet' | 'complete'>('welcome');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [specificAuthMethod, setSpecificAuthMethod] = useState<'email' | 'phone' | 'wallet' | 'google' | 'apple' | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
 
   // Check authentication status and update steps
   useEffect(() => {
@@ -49,7 +54,18 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
     if (authenticated && user) {
       // Check if user has a wallet
       if (wallets.length > 0) {
-        setCurrentStep('complete');
+        // Check if user profile exists
+        const walletAddress = wallets[0]?.address;
+        if (walletAddress) {
+          const existingProfile = userProfileManager.getProfile(walletAddress);
+          if (!existingProfile) {
+            setCurrentStep('profile');
+          } else {
+            setCurrentStep('complete');
+          }
+        } else {
+          setCurrentStep('complete');
+        }
       } else {
         setCurrentStep('wallet');
       }
@@ -90,12 +106,46 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
 
     try {
       await createWallet();
-      setCurrentStep('complete');
+      setCurrentStep('profile');
     } catch (err) {
       setError('Failed to create wallet. Please try again.');
       console.error('Wallet creation error:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleProfileSubmit = () => {
+    setNameError(null);
+    
+    if (!displayName.trim()) {
+      setNameError('Please enter your name');
+      return;
+    }
+
+    if (displayName.trim().length < 2) {
+      setNameError('Name must be at least 2 characters long');
+      return;
+    }
+
+    const walletAddress = wallets[0]?.address;
+    if (!walletAddress) {
+      setError('No wallet found. Please try again.');
+      return;
+    }
+
+    try {
+      const formattedName = formatDisplayName(displayName.trim());
+      userProfileManager.createProfile(
+        walletAddress,
+        formattedName,
+        user?.email?.address,
+        user?.phone?.number
+      );
+      setCurrentStep('complete');
+    } catch (err) {
+      setError('Failed to create profile. Please try again.');
+      console.error('Profile creation error:', err);
     }
   };
 
@@ -249,6 +299,76 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
         </Card>
       )}
 
+      {/* Profile Setup Step */}
+      {currentStep === 'profile' && (
+        <Card>
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
+              <UserPlus className="h-8 w-8 text-purple-600" />
+            </div>
+            <CardTitle>Tell us your name</CardTitle>
+            <CardDescription>
+              We&apos;ll use this to personalize your StudIQ experience
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label htmlFor="displayName" className="text-sm font-medium text-gray-700">
+                Display Name
+              </label>
+              <Input
+                id="displayName"
+                type="text"
+                placeholder="Enter your full name"
+                value={displayName}
+                onChange={(e) => {
+                  setDisplayName(e.target.value);
+                  setNameError(null);
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleProfileSubmit();
+                  }
+                }}
+                className={nameError ? 'border-red-300 focus:border-red-500' : ''}
+              />
+              {nameError && (
+                <p className="text-sm text-red-600">{nameError}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                This will be displayed on your dashboard and profile
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <User className="h-5 w-5 text-blue-600" />
+                <div className="text-sm">
+                  <div className="font-medium text-blue-900">Personalized Experience</div>
+                  <div className="text-blue-700">Get customized greetings and recommendations</div>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleProfileSubmit}
+              disabled={!displayName.trim() || isLoading}
+              className="w-full"
+              size="lg"
+            >
+              Continue
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Wallet Creation Step */}
       {currentStep === 'wallet' && (
         <Card>
@@ -346,7 +466,16 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
             <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
-            <CardTitle className="text-2xl">Welcome to StudIQ!</CardTitle>
+            <CardTitle className="text-2xl">
+              {(() => {
+                const walletAddress = wallets[0]?.address;
+                if (walletAddress) {
+                  const profile = userProfileManager.getProfile(walletAddress);
+                  return profile ? `Welcome, ${profile.displayName}!` : 'Welcome to StudIQ!';
+                }
+                return 'Welcome to StudIQ!';
+              })()}
+            </CardTitle>
             <CardDescription>
               Your account is set up and ready to go
             </CardDescription>

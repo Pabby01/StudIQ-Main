@@ -46,11 +46,16 @@ export async function POST(request: NextRequest) {
       "I'm sorry, I couldn't generate a response. Please try again.";
 
     return NextResponse.json({ message });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('OpenAI API error:', error);
     
+    // Type guard for error objects
+    const isErrorWithDetails = (err: unknown): err is { error?: { type?: string }; message?: string } => {
+      return typeof err === 'object' && err !== null;
+    };
+    
     // Handle specific OpenAI errors
-    if (error?.error?.type === 'invalid_api_key') {
+    if (isErrorWithDetails(error) && error.error?.type === 'invalid_api_key') {
       return NextResponse.json(
         { 
           error: 'Invalid OpenAI API key',
@@ -60,7 +65,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    if (error?.error?.type === 'insufficient_quota') {
+    if (isErrorWithDetails(error) && error.error?.type === 'insufficient_quota') {
       return NextResponse.json(
         { 
           error: 'OpenAI quota exceeded',
@@ -74,7 +79,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Failed to get AI response',
-        details: error?.message || 'An unexpected error occurred while processing your request.'
+        details: isErrorWithDetails(error) && error.message ? error.message : 'An unexpected error occurred while processing your request.'
       },
       { status: 500 }
     );

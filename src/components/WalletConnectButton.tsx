@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { userProfileManager, generateAvatar, UserProfile } from '@/lib/user-data';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +22,10 @@ import {
   Plus,
   User,
   Mail,
-  Phone
+  Phone,
+  Settings
 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function WalletConnectButton() {
   const { 
@@ -36,6 +39,16 @@ export default function WalletConnectButton() {
   
   const { wallets } = useWallets();
   const [isLoading, setIsLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  // Load user profile when wallet is connected
+  useEffect(() => {
+    if (authenticated && wallets.length > 0) {
+      const walletAddress = wallets[0].address;
+      const profile = userProfileManager.getProfile(walletAddress);
+      setUserProfile(profile);
+    }
+  }, [authenticated, wallets]);
 
   const handleConnect = async () => {
     setIsLoading(true);
@@ -152,24 +165,45 @@ export default function WalletConnectButton() {
 
   // Authenticated with wallets - show wallet info
   const primaryWallet = wallets[0];
+  const displayText = userProfile?.displayName || formatAddress(primaryWallet.address);
   
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
-          <Wallet className="h-4 w-4 mr-2" />
-          {formatAddress(primaryWallet.address)}
+          {userProfile ? (
+            <User className="h-4 w-4 mr-2" />
+          ) : (
+            <Wallet className="h-4 w-4 mr-2" />
+          )}
+          {displayText}
           <ChevronDown className="h-4 w-4 ml-2" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Wallet Connected</span>
+          <span>{userProfile ? 'Account' : 'Wallet Connected'}</span>
           <Badge variant="secondary" className="text-xs">
             {primaryWallet.walletClientType}
           </Badge>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        
+        {/* User Profile Info */}
+        {userProfile && (
+          <>
+            <DropdownMenuItem disabled className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
+                {generateAvatar(userProfile.displayName)}
+              </div>
+              <div>
+                <div className="font-medium">{userProfile.displayName}</div>
+                <div className="text-xs text-gray-500">{formatAddress(primaryWallet.address)}</div>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         
         {/* Wallet Address */}
         <DropdownMenuItem 
@@ -223,13 +257,26 @@ export default function WalletConnectButton() {
         )}
         
         {/* Actions */}
+        <Link href="/profile">
+          <DropdownMenuItem>
+            <Settings className="h-4 w-4 mr-2" />
+            Profile Settings
+          </DropdownMenuItem>
+        </Link>
+        
         <DropdownMenuItem onClick={handleCreateWallet} disabled={isLoading}>
           <Plus className="h-4 w-4 mr-2" />
           {isLoading ? 'Creating...' : 'Add Wallet'}
         </DropdownMenuItem>
         
         <DropdownMenuItem 
-          onClick={() => window.open(`https://etherscan.io/address/${primaryWallet.address}`, '_blank')}
+          onClick={() => {
+            const isEth = primaryWallet.address.startsWith('0x');
+            const url = isEth 
+              ? `https://etherscan.io/address/${primaryWallet.address}` 
+              : `https://solscan.io/account/${primaryWallet.address}`;
+            window.open(url, '_blank');
+          }}
         >
           <ExternalLink className="h-4 w-4 mr-2" />
           View on Explorer
