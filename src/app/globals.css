@@ -120,3 +120,156 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Enhanced Glassmorphism Components */
+  .glass-panel {
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(32px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border-radius: 1.5rem;
+  }
+  .glass-card {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+    border-radius: 1rem;
+  }
+  .glass-card:hover {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transform: translateY(-2px);
+  }
+  .glass-nav {
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(32px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Two-Color Theme Gradients */
+  .hero-gradient {
+    background-image: 
+      radial-gradient(1400px 700px at 85% 15%, rgba(59,130,246,0.12), transparent),
+      radial-gradient(1000px 600px at 15% 85%, rgba(147,197,253,0.08), transparent),
+      linear-gradient(135deg, rgba(59,130,246,0.03) 0%, rgba(147,197,253,0.05) 100%);
+  }
+  
+  .section-gradient-primary {
+    background: linear-gradient(135deg, rgba(59,130,246,0.02) 0%, rgba(147,197,253,0.04) 100%);
+  }
+  
+  .section-gradient-secondary {
+    background: linear-gradient(135deg, rgba(147,197,253,0.03) 0%, rgba(59,130,246,0.02) 100%);
+  }
+  
+  /* Enhanced Button Styles */
+  .btn-primary {
+    background-color: rgb(37, 99, 235);
+    color: white;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+  }
+  .btn-primary:hover {
+    background-color: rgb(29, 78, 216);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+  
+  .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.8);
+    color: rgb(37, 99, 235);
+    border: 1px solid rgb(191, 219, 254);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+  }
+  .btn-secondary:hover {
+    background-color: white;
+    border-color: rgb(147, 197, 253);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+  
+  /* Icon Containers */
+  .icon-container-primary {
+    background-color: rgba(219, 234, 254, 0.8);
+    backdrop-filter: blur(4px);
+    color: rgb(37, 99, 235);
+    padding: 0.75rem;
+    border-radius: 50%;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .icon-container-secondary {
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+    color: rgb(59, 130, 246);
+    padding: 0.75rem;
+    border-radius: 50%;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Feature Cards */
+  .feature-card {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border-radius: 1rem;
+    padding: 1.5rem;
+  }
+  .feature-card:hover {
+    background-color: rgba(255, 255, 255, 0.7);
+    transform: scale(1.05);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+  
+  /* Step Cards */
+  .step-card {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border-radius: 1rem;
+    padding: 2rem;
+  }
+  .step-card:hover {
+    background-color: rgba(255, 255, 255, 0.7);
+    transform: translateY(-8px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+  
+  /* Text Styles */
+  .text-primary {
+    color: rgb(17, 24, 39);
+  }
+  
+  .text-secondary {
+    color: rgb(75, 85, 99);
+  }
+  
+  .text-accent {
+    color: rgb(37, 99, 235);
+  }
+  
+  /* Section Backgrounds */
+  .bg-primary {
+    background-color: white;
+  }
+  
+  .bg-secondary {
+    background: linear-gradient(135deg, rgba(147,197,253,0.03) 0%, rgba(59,130,246,0.02) 100%);
+  }
+  
+  .bg-accent {
+    background-color: rgb(37, 99, 235);
+  }
+}

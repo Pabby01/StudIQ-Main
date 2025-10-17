@@ -1,14 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LandingNavbar } from '@/components/LandingNavbar';
 import { Footer } from '@/components/Footer';
-import { Brain, Wallet, TrendingUp, Store, Shield, Users, Loader2 } from 'lucide-react';
+import { Brain, Wallet, TrendingUp, Store, Shield, Users, Loader2, ArrowRight, Sparkles, DollarSign, BookOpen, Target, Zap } from 'lucide-react';
 
 export default function Home() {
   const { authenticated, ready } = usePrivy();
@@ -49,30 +51,228 @@ export default function Home() {
       <LandingNavbar />
       
       {/* Hero Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-            Your AI-Powered
-            <span className="text-blue-600"> Financial Future</span>
-          </h1>
-          <p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-            Connect your wallet, learn from AI, and earn rewards while building financial literacy. 
-            StudIQ makes DeFi accessible for every student.
-          </p>
-          <div className="mt-10 flex items-center justify-center gap-x-6">
-            <Link href="/dashboard">
-              <Button size="lg" className="px-8 py-3">
-                Get Started
-              </Button>
-            </Link>
-            <Link href="/ai-tutor">
-              <Button variant="outline" size="lg" className="px-8 py-3">
-                Try AI Tutor
-              </Button>
-            </Link>
-          </div>
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        <div className="absolute inset-0 -z-10 hero-gradient" aria-hidden="true" />
+        <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+          <motion.div 
+            className="glass-panel rounded-2xl p-8 md:p-10 text-center md:text-left"
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          >
+            <motion.h1 
+              className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              Your AI-Powered
+              <motion.span 
+                className="text-blue-600"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+              > Financial Future</motion.span>
+            </motion.h1>
+            <motion.p 
+              className="mt-6 text-lg leading-8 text-gray-600"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+            >
+              Connect your wallet, learn from AI, and earn rewards while building financial literacy. 
+              StudIQ makes DeFi accessible for every student.
+            </motion.p>
+            <motion.div 
+              className="mt-10 flex flex-wrap items-center gap-4 md:gap-x-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+            >
+              <Link href="/dashboard">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  <Button size="lg" className="px-8 py-3 bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <span className="inline-flex items-center gap-2">
+                      Get Started
+                      <motion.div
+                        animate={{ x: [0, 4, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </motion.div>
+                    </span>
+                  </Button>
+                </motion.div>
+              </Link>
+              <Link href="/ai-tutor">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  <Button variant="outline" size="lg" className="px-8 py-3 border-blue-200 hover:border-blue-300 hover:bg-blue-50 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <span className="inline-flex items-center gap-2">
+                      Try AI Tutor
+                      <motion.div
+                        animate={{ rotate: [0, 15, -15, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <Sparkles className="h-4 w-4 text-blue-600" />
+                      </motion.div>
+                    </span>
+                  </Button>
+                </motion.div>
+              </Link>
+            </motion.div>
+          </motion.div>
+          
+          <motion.div 
+            className="relative flex justify-center"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          >
+            {/* Animated Background Blurs */}
+            <motion.div 
+              className="absolute -top-12 -left-12 h-32 w-32 rounded-full bg-blue-200/30 blur-xl z-0" 
+              animate={{ 
+                scale: [1, 1.2, 1],
+                opacity: [0.3, 0.6, 0.3]
+              }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              aria-hidden="true" 
+            />
+            <motion.div 
+              className="absolute -bottom-12 -right-12 h-40 w-40 rounded-full bg-indigo-200/30 blur-xl z-0" 
+              animate={{ 
+                scale: [1, 1.1, 1],
+                opacity: [0.3, 0.5, 0.3]
+              }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              aria-hidden="true" 
+            />
+            
+            {/* Main Image Container - Smaller and Circular */}
+            <motion.div 
+              className="relative w-80 h-80 overflow-hidden rounded-full shadow-2xl ring-1 ring-black/5 z-5"
+              whileHover={{ scale: 1.05, y: -8 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <motion.div
+                initial={{ scale: 1.1 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 1.2, ease: "easeOut" }}
+                className="w-full h-full"
+              >
+                <Image
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=1600&auto=format&fit=crop"
+                  alt="Students learning and building their financial future"
+                  width={320}
+                  height={320}
+                  priority
+                  quality={85}
+                  sizes="(max-width: 768px) 280px, 320px"
+                  className="h-full w-full object-cover"
+                />
+              </motion.div>
+            </motion.div>
+            
+            {/* Floating Icons Around Image - Higher z-index */}
+            <motion.div
+              className="absolute -top-8 left-1/4 p-3 bg-blue-100/90 backdrop-blur-sm rounded-full shadow-lg z-20"
+              animate={{ 
+                y: [0, -12, 0],
+                rotate: [0, 360]
+              }}
+              transition={{ 
+                y: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 20, repeat: Infinity, ease: "linear" }
+              }}
+            >
+              <Brain className="h-6 w-6 text-blue-600" />
+            </motion.div>
+            
+            <motion.div
+              className="absolute top-1/4 -right-8 p-3 bg-indigo-100/90 backdrop-blur-sm rounded-full shadow-lg z-20"
+              animate={{ 
+                x: [0, 12, 0],
+                rotate: [0, 360]
+              }}
+              transition={{ 
+                x: { duration: 2.5, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 25, repeat: Infinity, ease: "linear" }
+              }}
+            >
+              <DollarSign className="h-6 w-6 text-indigo-600" />
+            </motion.div>
+            
+            <motion.div
+              className="absolute bottom-1/4 -left-8 p-3 bg-blue-100/90 backdrop-blur-sm rounded-full shadow-lg z-20"
+              animate={{ 
+                x: [0, -12, 0],
+                rotate: [0, 360]
+              }}
+              transition={{ 
+                x: { duration: 3.5, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 18, repeat: Infinity, ease: "linear" }
+              }}
+            >
+              <BookOpen className="h-6 w-6 text-blue-600" />
+            </motion.div>
+            
+            <motion.div
+              className="absolute -bottom-8 right-1/4 p-3 bg-indigo-100/90 backdrop-blur-sm rounded-full shadow-lg z-20"
+              animate={{ 
+                y: [0, 12, 0],
+                rotate: [0, 360]
+              }}
+              transition={{ 
+                y: { duration: 2.8, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 22, repeat: Infinity, ease: "linear" }
+              }}
+            >
+              <Target className="h-6 w-6 text-indigo-600" />
+            </motion.div>
+            
+            <motion.div
+              className="absolute top-1/3 -left-6 p-3 bg-blue-100/90 backdrop-blur-sm rounded-full shadow-lg z-20"
+              animate={{ 
+                y: [0, -10, 0],
+                x: [0, -10, 0],
+                rotate: [0, 360]
+              }}
+              transition={{ 
+                y: { duration: 3.2, repeat: Infinity, ease: "easeInOut" },
+                x: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 15, repeat: Infinity, ease: "linear" }
+              }}
+            >
+              <Zap className="h-6 w-6 text-blue-600" />
+            </motion.div>
+            
+            <motion.div
+              className="absolute bottom-1/3 -right-6 p-3 bg-indigo-100/90 backdrop-blur-sm rounded-full shadow-lg z-20"
+              animate={{ 
+                y: [0, 10, 0],
+                x: [0, 10, 0],
+                rotate: [0, 360]
+              }}
+              transition={{ 
+                y: { duration: 2.7, repeat: Infinity, ease: "easeInOut" },
+                x: { duration: 3.1, repeat: Infinity, ease: "easeInOut" },
+                rotate: { duration: 28, repeat: Infinity, ease: "linear" }
+              }}
+            >
+              <Wallet className="h-6 w-6 text-indigo-600" />
+            </motion.div>
+          </motion.div>
         </div>
       </section>
+{/* merged hero block above */}
 
       {/* Features Section */}
       <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
@@ -87,7 +287,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg">
+            <Card className="glass-card border-0 shadow-lg">
               <CardHeader>
                 <Brain className="h-10 w-10 text-blue-600 mb-2" />
                 <CardTitle>AI Financial Tutor</CardTitle>
@@ -97,7 +297,7 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            <Card className="border-0 shadow-lg">
+            <Card className="glass-card border-0 shadow-lg">
               <CardHeader>
                 <Wallet className="h-10 w-10 text-green-600 mb-2" />
                 <CardTitle>Solana Wallet Integration</CardTitle>
@@ -107,7 +307,7 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            <Card className="border-0 shadow-lg">
+            <Card className="glass-card border-0 shadow-lg">
               <CardHeader>
                 <TrendingUp className="h-10 w-10 text-purple-600 mb-2" />
                 <CardTitle>Curated Savings Pools</CardTitle>
@@ -117,7 +317,7 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            <Card className="border-0 shadow-lg">
+            <Card className="glass-card border-0 shadow-lg">
               <CardHeader>
                 <Store className="h-10 w-10 text-orange-600 mb-2" />
                 <CardTitle>Campus Store Rewards</CardTitle>
@@ -127,7 +327,7 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            <Card className="border-0 shadow-lg">
+            <Card className="glass-card border-0 shadow-lg">
               <CardHeader>
                 <Shield className="h-10 w-10 text-red-600 mb-2" />
                 <CardTitle>Security First</CardTitle>
@@ -137,7 +337,7 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            <Card className="border-0 shadow-lg">
+            <Card className="glass-card border-0 shadow-lg">
               <CardHeader>
                 <Users className="h-10 w-10 text-indigo-600 mb-2" />
                 <CardTitle>Student Community</CardTitle>
@@ -163,7 +363,7 @@ export default function Home() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
+            <div className="text-center glass-card rounded-2xl p-8">
               <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                 <span className="text-2xl font-bold text-blue-600">1</span>
               </div>
@@ -171,7 +371,7 @@ export default function Home() {
               <p className="text-gray-600">Link your existing Solana wallet or create a new one securely</p>
             </div>
             
-            <div className="text-center">
+            <div className="text-center glass-card rounded-2xl p-8">
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <span className="text-2xl font-bold text-green-600">2</span>
               </div>
@@ -179,7 +379,7 @@ export default function Home() {
               <p className="text-gray-600">Chat with our AI tutor to understand DeFi concepts and opportunities</p>
             </div>
             
-            <div className="text-center">
+            <div className="text-center glass-card rounded-2xl p-8">
               <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
                 <span className="text-2xl font-bold text-purple-600">3</span>
               </div>
