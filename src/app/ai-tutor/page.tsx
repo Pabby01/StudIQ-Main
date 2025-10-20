@@ -5,7 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppLayout from '@/components/AppLayout';
+import { useAITutor } from '@/hooks/useAITutor';
+import { useAuth } from '@/hooks/useAuth';
 import { EXAMPLE_TOPICS } from '@/lib/openai';
 import { 
   Brain, 
@@ -15,106 +18,39 @@ import {
   TrendingUp,
   Shield,
   User,
-  Bot
+  Bot,
+  Plus,
+  MessageSquare,
+  Trash2,
+  History,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
 export default function AITutor() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hi! I'm your AI Financial Tutor. I'm here to help you learn about personal finance, DeFi, and smart money management. What would you like to learn about today?",
-      timestamp: new Date()
-    }
-  ]);
+  const { isAuthenticated, user } = useAuth();
+  const {
+    currentSession,
+    messages,
+    sessions,
+    isLoading,
+    isLoadingHistory,
+    error,
+    sendMessage,
+    createNewSession,
+    loadSession,
+    deleteSession,
+    clearError
+  } = useAITutor();
+
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [newSessionTitle, setNewSessionTitle] = useState('');
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    await sendMessage(input);
     setInput('');
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map(m => ({
-            role: m.role,
-            content: m.content
-          }))
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Handle specific error responses from the API
-        let errorContent = "I'm sorry, I'm having trouble right now. ";
-        
-        if (data.error && data.details) {
-          if (data.error.includes('API key not configured')) {
-            errorContent = "🔑 OpenAI API key is not configured. Please add your OPENAI_API_KEY to the environment variables and restart the server.";
-          } else if (data.error.includes('Invalid OpenAI API key')) {
-            errorContent = "🔑 The OpenAI API key appears to be invalid. Please check that your API key is correct and starts with 'sk-'.";
-          } else if (data.error.includes('quota exceeded')) {
-            errorContent = "💳 OpenAI API quota has been exceeded. Please check your billing and usage limits.";
-          } else {
-            errorContent = `❌ ${data.error}${data.details ? ` - ${data.details}` : ''}`;
-          }
-        } else {
-          errorContent = "❌ Failed to get response from the AI tutor. Please try again.";
-        }
-
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: errorContent,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, errorMessage]);
-        return;
-      }
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error('Error:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "🌐 Network error: Unable to connect to the AI tutor. Please check your internet connection and try again.",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleExampleClick = (topic: string) => {
@@ -128,20 +64,115 @@ export default function AITutor() {
     }
   };
 
+  const handleCreateSession = async () => {
+    await createNewSession(newSessionTitle || undefined);
+    setNewSessionTitle('');
+    setShowSessionDialog(false);
+  };
+
+  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this chat session?')) {
+      await deleteSession(sessionId);
+    }
+  };
+
+  // Show authentication prompt if not logged in
+  if (!isAuthenticated) {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center">
+            <Brain className="h-16 w-16 text-blue-600 mx-auto mb-6" />
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">AI Financial Tutor</h1>
+            <p className="text-lg text-gray-600 mb-8">
+              Please log in to start chatting with your AI Financial Tutor and save your conversation history.
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="flex items-center justify-center space-x-2 text-blue-800">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">Authentication Required</span>
+              </div>
+              <p className="text-blue-700 mt-2">
+                Connect your wallet or sign in to access personalized AI tutoring with persistent chat history.
+              </p>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Header */}
         <div className="mb-6 md:mb-8">
-          <div className="flex items-center space-x-3 mb-4">
-            <Brain className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI Financial Tutor</h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Brain className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI Financial Tutor</h1>
+            </div>
+            <div className="flex items-center space-x-2">
+              {currentSession && (
+                <Badge variant="outline" className="hidden sm:flex">
+                  {currentSession.title}
+                </Badge>
+              )}
+              <Dialog open={showSessionDialog} onOpenChange={setShowSessionDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="flex items-center space-x-2">
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline">New Chat</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Start New Chat Session</DialogTitle>
+                    <DialogDescription>
+                      Create a new chat session with your AI Financial Tutor
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Input
+                      placeholder="Session title (optional)"
+                      value={newSessionTitle}
+                      onChange={(e) => setNewSessionTitle(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleCreateSession()}
+                    />
+                    <div className="flex justify-end space-x-2">
+                      <Button variant="outline" onClick={() => setShowSessionDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleCreateSession}>
+                        Create Session
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
           <p className="text-gray-600 text-sm md:text-base">
-            Learn financial concepts through personalized AI conversations. Ask questions about budgeting, 
-            investing, DeFi, or any financial topic!
+            Learn financial concepts through personalized AI conversations. Your chat history is automatically saved.
           </p>
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-red-800">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">Error</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={clearError}>
+                ×
+              </Button>
+            </div>
+            <p className="text-red-700 mt-1">{error}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Chat Interface */}
@@ -151,6 +182,11 @@ export default function AITutor() {
                 <CardTitle className="flex items-center space-x-2">
                   <Bot className="h-5 w-5" />
                   <span>StudIQ AI Tutor</span>
+                  {currentSession && (
+                    <Badge variant="secondary" className="ml-auto">
+                      {currentSession.title}
+                    </Badge>
+                  )}
                 </CardTitle>
                 <CardDescription>
                   Ask me anything about personal finance and DeFi
@@ -223,7 +259,11 @@ export default function AITutor() {
                     disabled={!input.trim() || isLoading}
                     size="sm"
                   >
-                    <Send className="h-4 w-4" />
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -232,6 +272,61 @@ export default function AITutor() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Chat History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <History className="h-5 w-5" />
+                  <span>Chat History</span>
+                </CardTitle>
+                <CardDescription>
+                  Your previous conversations
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 max-h-48 overflow-y-auto">
+                {isLoadingHistory ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                  </div>
+                ) : sessions.length > 0 ? (
+                  sessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                        currentSession?.id === session.id
+                          ? 'bg-blue-100 border border-blue-200'
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => loadSession(session.id)}
+                    >
+                      <div className="flex items-center space-x-2 flex-1 min-w-0">
+                        <MessageSquare className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{session.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(session.updated_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
+                        onClick={(e) => handleDeleteSession(session.id, e)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    No chat history yet. Start a conversation!
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Example Topics */}
             <Card>
               <CardHeader>
@@ -294,7 +389,7 @@ export default function AITutor() {
                 <p>• Ask specific questions for better answers</p>
                 <p>• Request examples with real numbers</p>
                 <p>• Ask for step-by-step explanations</p>
-                <p>• Don&apos;t hesitate to ask follow-up questions</p>
+                <p>• Your conversations are automatically saved</p>
               </CardContent>
             </Card>
           </div>

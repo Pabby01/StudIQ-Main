@@ -39,11 +39,15 @@ export default function Dashboard() {
 
   // Load user profile when wallet is connected
   useEffect(() => {
-    if (authenticated && wallets.length > 0) {
-      const walletAddress = wallets[0].address;
-      const profile = userProfileManager.getProfile(walletAddress);
-      setUserProfile(profile);
-    }
+    const loadProfile = async () => {
+      if (authenticated && wallets.length > 0) {
+        const walletAddress = wallets[0].address;
+        const profile = await userProfileManager.getProfile(walletAddress);
+        setUserProfile(profile);
+      }
+    };
+    
+    loadProfile();
   }, [authenticated, wallets]);
 
   // Load wallet data when wallet is connected

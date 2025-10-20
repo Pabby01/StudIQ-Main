@@ -1,3 +1,5 @@
+import { UserProfileManager, UserStatsManager, UserPreferencesManager } from './database-utils'
+
 export interface UserProfile {
   id: string;
   walletAddress: string;
@@ -21,144 +23,282 @@ export interface UserStats {
   nextLevelPoints: number;
   completedLessons: number;
   portfolioValue: number;
+  totalXP: number;
+  streak: number;
+  totalSessions: number; // Assuming this is a number, adjust if it's a specific type
+  totalTimeSpent: number;
+  achievements: string[]; // Changed to string[] as Achievement is not defined
+  coursesCompleted: number;
+  averageScore: number;
 }
 
-// Local storage keys
-const USER_PROFILE_KEY = 'studiq_user_profile';
-const USER_STATS_KEY = 'studiq_user_stats';
+// Helper function to calculate level from points
+const calculateLevel = (points: number): { level: string; nextLevelPoints: number } => {
+  if (points < 500) return { level: 'Bronze', nextLevelPoints: 500 - points }
+  if (points < 1500) return { level: 'Silver', nextLevelPoints: 1500 - points }
+  if (points < 3000) return { level: 'Gold', nextLevelPoints: 3000 - points }
+  if (points < 5000) return { level: 'Platinum', nextLevelPoints: 5000 - points }
+  return { level: 'Diamond', nextLevelPoints: 0 }
+}
+
+// Helper function to convert database profile to legacy format
+const convertDbProfileToLegacy = async (
+  dbProfile: {
+    id: string;
+    wallet_address?: string;
+    display_name: string;
+    email?: string | null;
+    phone?: string | null;
+    avatar_url?: string | null;
+    created_at: string;
+    updated_at: string;
+  },
+  dbPrefs: {
+    theme?: string;
+    notifications_enabled?: boolean;
+    language?: string;
+  } | null
+): Promise<UserProfile> => {
+  return {
+    id: dbProfile.id,
+    walletAddress: dbProfile.wallet_address || '',
+    displayName: dbProfile.display_name,
+    email: dbProfile.email || undefined,
+    phone: dbProfile.phone || undefined,
+    avatar: dbProfile.avatar_url || undefined,
+    createdAt: new Date(dbProfile.created_at),
+    updatedAt: new Date(dbProfile.updated_at),
+    preferences: {
+      theme: dbPrefs?.theme === 'dark' ? 'dark' : 'light',
+      notifications: dbPrefs?.notifications_enabled ?? true,
+      language: dbPrefs?.language || 'en'
+    }
+  }
+}
+
+// Helper function to convert database stats to legacy format
+const convertDbStatsToLegacy = (dbStats: {
+  total_points: number;
+  total_cashback: string | number;
+  completed_lessons: number;
+  portfolio_value: string | number;
+  streak_days: number;
+}): UserStats => {
+  const { level, nextLevelPoints } = calculateLevel(dbStats.total_points)
+  return {
+    totalPoints: dbStats.total_points,
+    totalCashback: Number(dbStats.total_cashback),
+    level,
+    nextLevelPoints,
+    completedLessons: dbStats.completed_lessons,
+    portfolioValue: Number(dbStats.portfolio_value),
+    totalXP: dbStats.total_points, // Map total_points to totalXP
+    streak: dbStats.streak_days,
+    totalSessions: 0, // Not available in current schema
+    totalTimeSpent: 0, // Not available in current schema
+    achievements: [], // Not available in current schema
+    coursesCompleted: dbStats.completed_lessons,
+    averageScore: 0 // Not available in current schema
+  }
+}
 
 // User Profile Management
 export const userProfileManager = {
-  // Get user profile from localStorage
-  getProfile: (walletAddress: string): UserProfile | null => {
+  // Get user profile from Supabase
+  getProfile: async (walletAddress: string): Promise<UserProfile | null> => {
     try {
-      const stored = localStorage.getItem(`${USER_PROFILE_KEY}_${walletAddress}`);
-      if (stored) {
-        const profile = JSON.parse(stored);
-        return {
-          ...profile,
-          createdAt: new Date(profile.createdAt),
-          updatedAt: new Date(profile.updatedAt),
-        };
-      }
-      return null;
+      // First try to find by wallet address
+      const dbProfile = await UserProfileManager.getProfile(walletAddress)
+      if (!dbProfile) return null
+
+      // Get user preferences
+      const dbPrefs = await UserPreferencesManager.getPreferences(walletAddress)
+      
+      return await convertDbProfileToLegacy(
+        {
+          id: dbProfile.id,
+          wallet_address: dbProfile.wallet_address || undefined,
+          display_name: dbProfile.display_name,
+          email: dbProfile.email,
+          phone: dbProfile.phone,
+          avatar_url: dbProfile.avatar_url,
+          created_at: dbProfile.created_at,
+          updated_at: dbProfile.updated_at
+        },
+        dbPrefs
+      )
     } catch (error) {
-      console.error('Error getting user profile:', error);
-      return null;
+      console.error('Error getting user profile:', error)
+      return null
     }
   },
 
-  // Save user profile to localStorage
-  saveProfile: (profile: UserProfile): void => {
+  // Save user profile to Supabase
+  saveProfile: async (profile: UserProfile): Promise<void> => {
     try {
-      const profileToSave = {
-        ...profile,
-        updatedAt: new Date(),
-      };
-      localStorage.setItem(
-        `${USER_PROFILE_KEY}_${profile.walletAddress}`,
-        JSON.stringify(profileToSave)
-      );
+      await UserProfileManager.updateProfile(profile.walletAddress, {
+        display_name: profile.displayName,
+        email: profile.email || null,
+        phone: profile.phone || null,
+        wallet_address: profile.walletAddress,
+        avatar_url: profile.avatar || null
+      })
+
+      // Update preferences
+      await UserPreferencesManager.updatePreferences(profile.walletAddress, {
+        theme: profile.preferences.theme === 'dark' ? 'dark' : 'light',
+        notifications_enabled: profile.preferences.notifications,
+        language: profile.preferences.language
+      })
     } catch (error) {
-      console.error('Error saving user profile:', error);
+      console.error('Error saving user profile:', error)
+      throw error
     }
   },
 
   // Create new user profile
-  createProfile: (walletAddress: string, displayName: string, email?: string, phone?: string): UserProfile => {
-    const profile: UserProfile = {
-      id: `user_${Date.now()}`,
-      walletAddress,
-      displayName,
-      email,
-      phone,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      preferences: {
+  createProfile: async (walletAddress: string, displayName: string, email?: string, phone?: string): Promise<UserProfile> => {
+    try {
+      const dbProfile = await UserProfileManager.createProfile({
+        user_id: walletAddress,
+        display_name: displayName,
+        email: email || null,
+        phone: phone || null,
+        wallet_address: walletAddress,
+        avatar_url: generateAvatar(displayName)
+      })
+
+      // Create default preferences
+      const dbPrefs = await UserPreferencesManager.createPreferences({
+        user_id: walletAddress,
         theme: 'light',
-        notifications: true,
-        language: 'en',
-      },
-    };
-    
-    userProfileManager.saveProfile(profile);
-    return profile;
+        notifications_enabled: true,
+        language: 'en'
+      })
+
+      return await convertDbProfileToLegacy(
+        {
+          id: dbProfile.id,
+          wallet_address: dbProfile.wallet_address || undefined,
+          display_name: dbProfile.display_name,
+          email: dbProfile.email,
+          phone: dbProfile.phone,
+          avatar_url: dbProfile.avatar_url,
+          created_at: dbProfile.created_at,
+          updated_at: dbProfile.updated_at
+        },
+        dbPrefs
+      )
+    } catch (error) {
+      console.error('Error creating user profile:', error)
+      throw error
+    }
   },
 
   // Update user profile
-  updateProfile: (walletAddress: string, updates: Partial<UserProfile>): UserProfile | null => {
-    const existingProfile = userProfileManager.getProfile(walletAddress);
-    if (!existingProfile) return null;
+  updateProfile: async (walletAddress: string, updates: Partial<UserProfile>): Promise<UserProfile | null> => {
+    try {
+      const existingProfile = await userProfileManager.getProfile(walletAddress)
+      if (!existingProfile) return null
 
-    const updatedProfile = {
-      ...existingProfile,
-      ...updates,
-      updatedAt: new Date(),
-    };
+      const updatedProfile = {
+        ...existingProfile,
+        ...updates,
+        updatedAt: new Date(),
+      }
 
-    userProfileManager.saveProfile(updatedProfile);
-    return updatedProfile;
+      await userProfileManager.saveProfile(updatedProfile)
+      return updatedProfile
+    } catch (error) {
+      console.error('Error updating user profile:', error)
+      return null
+    }
   },
 
   // Delete user profile
-  deleteProfile: (walletAddress: string): void => {
+  deleteProfile: async (walletAddress: string): Promise<void> => {
     try {
-      localStorage.removeItem(`${USER_PROFILE_KEY}_${walletAddress}`);
-      localStorage.removeItem(`${USER_STATS_KEY}_${walletAddress}`);
+      await UserProfileManager.deleteProfile(walletAddress)
     } catch (error) {
-      console.error('Error deleting user profile:', error);
+      console.error('Error deleting user profile:', error)
+      throw error
     }
   },
 };
 
 // User Stats Management
 export const userStatsManager = {
-  // Get user stats from localStorage
-  getStats: (walletAddress: string): UserStats | null => {
+  // Get user stats from Supabase
+  getStats: async (walletAddress: string): Promise<UserStats | null> => {
     try {
-      const stored = localStorage.getItem(`${USER_STATS_KEY}_${walletAddress}`);
-      return stored ? JSON.parse(stored) : null;
+      const dbStats = await UserStatsManager.getStats(walletAddress)
+      if (!dbStats) return null
+
+      return convertDbStatsToLegacy(dbStats)
     } catch (error) {
-      console.error('Error getting user stats:', error);
-      return null;
+      console.error('Error getting user stats:', error)
+      return null
     }
   },
 
-  // Save user stats to localStorage
-  saveStats: (walletAddress: string, stats: UserStats): void => {
+  // Save user stats to Supabase
+  saveStats: async (walletAddress: string, stats: UserStats): Promise<void> => {
     try {
-      localStorage.setItem(`${USER_STATS_KEY}_${walletAddress}`, JSON.stringify(stats));
+      await UserStatsManager.updateStats(walletAddress, {
+        total_points: stats.totalXP,
+        level: typeof stats.level === 'string' ? 1 : stats.level, // Convert string level to number
+        streak_days: stats.streak,
+        completed_lessons: stats.coursesCompleted,
+        portfolio_value: stats.portfolioValue,
+        total_cashback: stats.totalCashback,
+        last_activity: new Date().toISOString()
+      })
     } catch (error) {
-      console.error('Error saving user stats:', error);
+      console.error('Error saving user stats:', error)
+      throw error
     }
   },
 
-  // Initialize default stats for new user
-  initializeStats: (walletAddress: string): UserStats => {
-    const defaultStats: UserStats = {
-      totalPoints: 0,
-      totalCashback: 0,
-      level: 'Bronze',
-      nextLevelPoints: 500,
-      completedLessons: 0,
-      portfolioValue: 0,
-    };
+  // Initialize user stats
+  initializeStats: async (walletAddress: string): Promise<UserStats> => {
+    try {
+      const dbStats = await UserStatsManager.createStats({
+        user_id: walletAddress,
+        total_points: 0,
+        level: 1,
+        streak_days: 0,
+        completed_lessons: 0,
+        portfolio_value: 0,
+        total_cashback: 0,
+        last_activity: new Date().toISOString()
+      })
 
-    userStatsManager.saveStats(walletAddress, defaultStats);
-    return defaultStats;
+      return convertDbStatsToLegacy(dbStats)
+    } catch (error) {
+      console.error('Error initializing user stats:', error)
+      throw error
+    }
   },
 
   // Update user stats
-  updateStats: (walletAddress: string, updates: Partial<UserStats>): UserStats | null => {
-    const existingStats = userStatsManager.getStats(walletAddress) || userStatsManager.initializeStats(walletAddress);
-    
-    const updatedStats = {
-      ...existingStats,
-      ...updates,
-    };
+  updateStats: async (walletAddress: string, updates: Partial<UserStats>): Promise<UserStats | null> => {
+    try {
+      let existingStats = await userStatsManager.getStats(walletAddress)
+      if (!existingStats) {
+        existingStats = await userStatsManager.initializeStats(walletAddress)
+      }
+      
+      const updatedStats = {
+        ...existingStats,
+        ...updates,
+      };
 
-    userStatsManager.saveStats(walletAddress, updatedStats);
-    return updatedStats;
+      await userStatsManager.saveStats(walletAddress, updatedStats)
+      return updatedStats
+    } catch (error) {
+      console.error('Error updating user stats:', error)
+      return null
+    }
   },
 };
 

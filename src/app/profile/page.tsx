@@ -41,14 +41,18 @@ export default function ProfilePage() {
 
   // Load user profile
   useEffect(() => {
-    if (authenticated && wallets.length > 0) {
-      const walletAddress = wallets[0].address;
-      const userProfile = userProfileManager.getProfile(walletAddress);
-      setProfile(userProfile);
-      if (userProfile) {
-        setEditedName(userProfile.displayName);
+    const loadProfile = async () => {
+      if (authenticated && wallets.length > 0) {
+        const walletAddress = wallets[0].address;
+        const userProfile = await userProfileManager.getProfile(walletAddress);
+        setProfile(userProfile);
+        if (userProfile) {
+          setEditedName(userProfile.displayName);
+        }
       }
-    }
+    };
+    
+    loadProfile();
   }, [authenticated, wallets]);
 
   const handleSaveProfile = async () => {
@@ -74,7 +78,7 @@ export default function ProfilePage() {
 
     try {
       const formattedName = formatDisplayName(editedName.trim());
-      const updatedProfile = userProfileManager.updateProfile(profile.walletAddress, {
+      const updatedProfile = await userProfileManager.updateProfile(profile.walletAddress, {
         displayName: formattedName
       });
       

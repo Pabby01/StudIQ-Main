@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOpenAIClient, FINANCIAL_TUTOR_SYSTEM_PROMPT } from '@/lib/openai';
+import { ChatManager } from '@/lib/database-utils';
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages, sessionId } = await request.json();
 
     // Check if OpenAI API key is configured
     const apiKey = process.env.OPENAI_API_KEY;
@@ -31,11 +32,26 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Making OpenAI API request...');
+    
+    // Enhanced system prompt with session context
+    let systemPrompt = FINANCIAL_TUTOR_SYSTEM_PROMPT;
+    
+    // If we have a session ID, try to get session context
+    if (sessionId) {
+      try {
+        // Get session details for context (optional enhancement)
+        // This could include subject, difficulty level, etc.
+        systemPrompt += '\n\nThis is a continuing conversation. Maintain context and build upon previous discussions while staying focused on financial education.';
+      } catch (error) {
+        console.warn('Could not load session context:', error);
+      }
+    }
+    
     const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
-        { role: 'system', content: FINANCIAL_TUTOR_SYSTEM_PROMPT },
+        { role: 'system', content: systemPrompt },
         ...messages
       ],
       max_tokens: 500,

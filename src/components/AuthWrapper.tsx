@@ -1,85 +1,41 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
   requireAuth?: boolean;
-  requireWallet?: boolean;
   onboardingComponent?: React.ComponentType<{ onComplete: () => void }>;
 }
 
 export default function AuthWrapper({ 
   children, 
   requireAuth = false, 
-  requireWallet = false,
   onboardingComponent: OnboardingComponent 
 }: AuthWrapperProps) {
   const { 
-    ready, 
-    authenticated, 
-    user, 
-    createWallet 
-  } = usePrivy();
+    isReady,
+    isAuthenticated,
+    isLoading,
+    user,
+    error
+  } = useAuth();
   
-  const { wallets } = useWallets();
-  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
-  const [walletCreationAttempted, setWalletCreationAttempted] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-
-  // Auto-create wallet for email/phone users
-  useEffect(() => {
-    const shouldCreateWallet = async () => {
-      // Only proceed if Privy is ready and user is authenticated
-      if (!ready || !authenticated || !user) return;
-      
-      // Skip if wallet creation already attempted or user already has wallets
-      if (walletCreationAttempted || wallets.length > 0) return;
-      
-      // Check if user authenticated via email or phone (not wallet)
-      const hasEmailOrPhone = user.email || user.phone;
-      const hasExternalWallet = user.wallet;
-      
-      // Auto-create wallet for email/phone users who don't have external wallets
-      if (hasEmailOrPhone && !hasExternalWallet) {
-        setIsCreatingWallet(true);
-        setWalletCreationAttempted(true);
-        
-        try {
-          await createWallet();
-          console.log('Wallet automatically created for email/phone user');
-        } catch (error) {
-          console.error('Failed to auto-create wallet:', error);
-          // Don't block the user if wallet creation fails
-        } finally {
-          setIsCreatingWallet(false);
-        }
-      } else {
-        setWalletCreationAttempted(true);
-      }
-    };
-
-    shouldCreateWallet();
-  }, [ready, authenticated, user, wallets.length, createWallet, walletCreationAttempted]);
 
   // Determine if onboarding should be shown
   useEffect(() => {
-    if (!ready) return;
+    if (!isReady) return;
 
-    // Show onboarding if:
-    // 1. Auth is required but user is not authenticated, OR
-    // 2. Wallet is required but user has no wallets
-    const needsOnboarding = 
-      (requireAuth && !authenticated) || 
-      (requireWallet && authenticated && wallets.length === 0 && !isCreatingWallet);
-
+    // Show onboarding if auth is required but user is not authenticated
+    const needsOnboarding = requireAuth && !isAuthenticated;
     setShowOnboarding(needsOnboarding);
-  }, [ready, authenticated, wallets.length, requireAuth, requireWallet, isCreatingWallet]);
+  }, [isReady, isAuthenticated, requireAuth]);
 
-  // Loading state while Privy initializes
-  if (!ready) {
+  // Loading state while auth system initializes
+  if (!isReady) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
@@ -90,14 +46,25 @@ export default function AuthWrapper({
     );
   }
 
-  // Show wallet creation loading state
-  if (isCreatingWallet) {
+  // Show loading state during authentication
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Creating your secure wallet...</p>
-          <p className="text-sm text-muted-foreground">This will only take a moment</p>
+          <p className="text-muted-foreground">Authenticating...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if authentication failed
+  if (error && requireAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="text-red-600">Authentication Error</div>
+          <p className="text-muted-foreground">{error}</p>
         </div>
       </div>
     );
@@ -118,65 +85,21 @@ export default function AuthWrapper({
 
 // Hook for components that need authentication status
 export function useAuthStatus() {
-  const { ready, authenticated, user } = usePrivy();
-  const { wallets } = useWallets();
+  const { 
+    isReady,
+    isAuthenticated,
+    user,
+    walletAddress,
+    hasWallet
+  } = useAuth();
 
   return {
-    ready,
-    authenticated,
+    ready: isReady,
+    authenticated: isAuthenticated,
     user,
-    wallets,
-    hasWallet: wallets.length > 0,
+    walletAddress,
+    hasWallet,
     isEmailUser: !!user?.email,
     isPhoneUser: !!user?.phone,
-    isWalletUser: !!user?.wallet,
-  };
-}
-
-// Hook for wallet operations
-export function useWalletOperations() {
-  const { createWallet, exportWallet } = usePrivy();
-  const { wallets } = useWallets();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const createNewWallet = async () => {
-    setIsLoading(true);
-    try {
-      const wallet = await createWallet();
-      return wallet;
-    } catch (error) {
-      console.error('Failed to create wallet:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const exportWalletPrivateKey = async (walletAddress?: string) => {
-    setIsLoading(true);
-    try {
-      const targetWallet = walletAddress 
-        ? wallets.find(w => w.address === walletAddress)
-        : wallets[0];
-      
-      if (!targetWallet) {
-        throw new Error('No wallet found');
-      }
-
-      const privateKey = await exportWallet();
-      return privateKey;
-    } catch (error) {
-      console.error('Failed to export wallet:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return {
-    wallets,
-    createNewWallet,
-    exportWalletPrivateKey,
-    isLoading,
   };
 }

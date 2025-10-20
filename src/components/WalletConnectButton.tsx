@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import React from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { userProfileManager, generateAvatar, UserProfile } from '@/lib/user-data';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -19,67 +18,39 @@ import {
   Copy, 
   ExternalLink, 
   LogOut,
-  Plus,
   User,
   Mail,
   Phone,
-  Settings
+  Settings,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function WalletConnectButton() {
-  const { 
-    ready, 
-    authenticated, 
-    user, 
-    login, 
-    logout, 
-    createWallet
-  } = usePrivy();
-  
-  const { wallets } = useWallets();
-  const [isLoading, setIsLoading] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-
-  // Load user profile when wallet is connected
-  useEffect(() => {
-    if (authenticated && wallets.length > 0) {
-      const walletAddress = wallets[0].address;
-      const profile = userProfileManager.getProfile(walletAddress);
-      setUserProfile(profile);
-    }
-  }, [authenticated, wallets]);
+  const {
+    isReady,
+    isAuthenticated,
+    isLoading,
+    user,
+    login,
+    logout,
+    walletAddress,
+    hasWallet
+  } = useAuth();
 
   const handleConnect = async () => {
-    setIsLoading(true);
     try {
       await login();
     } catch (error) {
       console.error('Login failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateWallet = async () => {
-    setIsLoading(true);
-    try {
-      await createWallet();
-    } catch (error) {
-      console.error('Wallet creation failed:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    setIsLoading(true);
     try {
       await logout();
     } catch (error) {
       console.error('Logout failed:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -92,7 +63,7 @@ export default function WalletConnectButton() {
   };
 
   // Loading state
-  if (!ready) {
+  if (!isReady) {
     return (
       <Button variant="outline" size="sm" disabled>
         <Wallet className="h-4 w-4 mr-2" />
@@ -102,103 +73,64 @@ export default function WalletConnectButton() {
   }
 
   // Not authenticated - show connect button
-  if (!authenticated) {
+  if (!isAuthenticated) {
     return (
       <Button 
-        onClick={handleConnect} 
         variant="outline" 
-        size="sm"
+        size="sm" 
+        onClick={handleConnect}
         disabled={isLoading}
       >
-        <Wallet className="h-4 w-4 mr-2" />
-        {isLoading ? 'Connecting...' : 'Connect Wallet'}
+        {isLoading ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Connecting...
+          </>
+        ) : (
+          <>
+            <Wallet className="h-4 w-4 mr-2" />
+            Connect Wallet
+          </>
+        )}
       </Button>
     );
   }
 
-  // Authenticated but no wallets - show create wallet option
-  if (authenticated && wallets.length === 0) {
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
-            <User className="h-4 w-4 mr-2" />
-            {user?.email?.address || user?.phone?.number || 'Account'}
-            <ChevronDown className="h-4 w-4 ml-2" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          
-          {user?.email && (
-            <DropdownMenuItem disabled>
-              <Mail className="h-4 w-4 mr-2" />
-              {user.email.address}
-            </DropdownMenuItem>
-          )}
-          
-          {user?.phone && (
-            <DropdownMenuItem disabled>
-              <Phone className="h-4 w-4 mr-2" />
-              {user.phone.number}
-            </DropdownMenuItem>
-          )}
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={handleCreateWallet} disabled={isLoading}>
-            <Plus className="h-4 w-4 mr-2" />
-            {isLoading ? 'Creating...' : 'Create Wallet'}
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={handleLogout} disabled={isLoading}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  }
-
-  // Authenticated with wallets - show wallet info
-  const primaryWallet = wallets[0];
-  const displayText = userProfile?.displayName || formatAddress(primaryWallet.address);
+  // Authenticated - show user info
+  const displayText = user?.displayName || formatAddress(walletAddress || '');
   
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
-          {userProfile ? (
-            <User className="h-4 w-4 mr-2" />
-          ) : (
-            <Wallet className="h-4 w-4 mr-2" />
-          )}
+        <Button variant="outline" size="sm" disabled={isLoading}>
+          <User className="h-4 w-4 mr-2" />
           {displayText}
           <ChevronDown className="h-4 w-4 ml-2" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex items-center justify-between">
-          <span>{userProfile ? 'Account' : 'Wallet Connected'}</span>
-          <Badge variant="secondary" className="text-xs">
-            {primaryWallet.walletClientType}
-          </Badge>
+          <span>Account</span>
+          {user?.isNewUser && (
+            <Badge variant="secondary" className="text-xs">
+              New
+            </Badge>
+          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
         {/* User Profile Info */}
-        {userProfile && (
+        {user && (
           <>
             <DropdownMenuItem disabled className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
-                {generateAvatar(userProfile.displayName)}
+                {user.avatar || user.displayName.charAt(0).toUpperCase()}
               </div>
               <div>
-                <div className="font-medium">{userProfile.displayName}</div>
-                <div className="text-xs text-gray-500">{formatAddress(primaryWallet.address)}</div>
+                <div className="font-medium">{user.displayName}</div>
+                {walletAddress && (
+                  <div className="text-xs text-gray-500">{formatAddress(walletAddress)}</div>
+                )}
               </div>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -206,87 +138,55 @@ export default function WalletConnectButton() {
         )}
         
         {/* Wallet Address */}
-        <DropdownMenuItem 
-          onClick={() => copyToClipboard(primaryWallet.address)}
-          className="font-mono text-xs"
-        >
-          <Copy className="h-4 w-4 mr-2" />
-          {primaryWallet.address}
-        </DropdownMenuItem>
+        {walletAddress && (
+          <DropdownMenuItem 
+            onClick={() => copyToClipboard(walletAddress)}
+            className="font-mono text-xs"
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            {walletAddress}
+          </DropdownMenuItem>
+        )}
         
         {/* Account Info */}
         {user?.email && (
           <DropdownMenuItem disabled>
             <Mail className="h-4 w-4 mr-2" />
-            {user.email.address}
+            {user.email}
           </DropdownMenuItem>
         )}
         
         {user?.phone && (
           <DropdownMenuItem disabled>
             <Phone className="h-4 w-4 mr-2" />
-            {user.phone.number}
+            {user.phone}
           </DropdownMenuItem>
         )}
         
         <DropdownMenuSeparator />
         
-        {/* Additional Wallets */}
-        {wallets.length > 1 && (
-          <>
-            <DropdownMenuLabel>Other Wallets ({wallets.length - 1})</DropdownMenuLabel>
-            {wallets.slice(1, 3).map((wallet) => (
-              <DropdownMenuItem 
-                key={wallet.address}
-                onClick={() => copyToClipboard(wallet.address)}
-                className="font-mono text-xs"
-              >
-                <Wallet className="h-4 w-4 mr-2" />
-                {formatAddress(wallet.address)}
-              </DropdownMenuItem>
-            ))}
-            {wallets.length > 3 && (
-              <DropdownMenuItem disabled>
-                <span className="text-muted-foreground">
-                  +{wallets.length - 3} more wallets
-                </span>
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-          </>
-        )}
-        
-        {/* Actions */}
-        <Link href="/profile">
-          <DropdownMenuItem>
+        {/* Navigation Links */}
+        <DropdownMenuItem asChild>
+          <Link href="/profile">
             <Settings className="h-4 w-4 mr-2" />
             Profile Settings
+          </Link>
+        </DropdownMenuItem>
+        
+        {walletAddress && (
+          <DropdownMenuItem 
+            onClick={() => window.open(`https://solscan.io/account/${walletAddress}`, '_blank')}
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            View on Explorer
           </DropdownMenuItem>
-        </Link>
-        
-        <DropdownMenuItem onClick={handleCreateWallet} disabled={isLoading}>
-          <Plus className="h-4 w-4 mr-2" />
-          {isLoading ? 'Creating...' : 'Add Wallet'}
-        </DropdownMenuItem>
-        
-        <DropdownMenuItem 
-          onClick={() => {
-            const isEth = primaryWallet.address.startsWith('0x');
-            const url = isEth 
-              ? `https://etherscan.io/address/${primaryWallet.address}` 
-              : `https://solscan.io/account/${primaryWallet.address}`;
-            window.open(url, '_blank');
-          }}
-        >
-          <ExternalLink className="h-4 w-4 mr-2" />
-          View on Explorer
-        </DropdownMenuItem>
+        )}
         
         <DropdownMenuSeparator />
         
         <DropdownMenuItem onClick={handleLogout} disabled={isLoading}>
           <LogOut className="h-4 w-4 mr-2" />
-          Sign Out
+          {isLoading ? 'Signing out...' : 'Sign Out'}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
