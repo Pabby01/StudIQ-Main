@@ -11,7 +11,7 @@ export const privyConfig = {
     appearance: {
       theme: 'light' as const,
       accentColor: '#3B82F6',
-      logo: '/logo.svg',
+      logo: '/logo.jpg',
       showWalletLoginFirst: false,
       walletChainType: 'ethereum-and-solana',
     },

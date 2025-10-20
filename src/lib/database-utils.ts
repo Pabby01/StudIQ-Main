@@ -2,7 +2,7 @@
 // Note: Using 'any' types is necessary due to Supabase type generation issues
 // where Insert and Update types are incorrectly inferred as 'never'
 
-import { supabase, handleSupabaseError } from './supabase'
+import { supabase, supabaseAdmin, handleSupabaseError } from './supabase'
 import type {
   UserProfile,
   UserProfileInsert,
@@ -55,17 +55,17 @@ export class UserProfileManager {
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
       if (error) {
-        if (error.code === 'PGRST116') return null
-        handleSupabaseError(error, 'fetch user profile')
+        console.error('Error fetching user profile:', error)
+        return null
       }
 
       return data
     } catch (error) {
       console.error('Error fetching user profile:', error)
-      throw error
+      return null
     }
   }
 
@@ -84,7 +84,8 @@ export class UserProfileManager {
         throw new Error('Invalid phone number format')
       }
 
-      const { data, error } = await (supabase as any)
+      // Use admin client to bypass RLS for user creation
+      const { data, error } = await (supabaseAdmin as any)
       .from('user_profiles')
       .insert(profile)
       .select()
@@ -98,7 +99,7 @@ export class UserProfileManager {
         throw new Error('Failed to create user profile - no data returned')
       }
 
-      // Create default user stats and preferences
+      // Create default user stats and preferences using admin client
       await Promise.all([
         UserStatsManager.createStats({ user_id: profile.user_id }),
         UserPreferencesManager.createPreferences({ user_id: profile.user_id })
@@ -173,23 +174,24 @@ export class UserStatsManager {
         .from('user_stats')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
       if (error) {
-        if (error.code === 'PGRST116') return null
-        handleSupabaseError(error, 'fetch user stats')
+        console.error('Error fetching user stats:', error)
+        return null
       }
 
       return data
     } catch (error) {
       console.error('Error fetching user stats:', error)
-      throw error
+      return null
     }
   }
 
   static async createStats(stats: UserStatsInsert): Promise<UserStats> {
     try {
-      const { data, error } = await (supabase as any)
+      // Use admin client to bypass RLS for user stats creation
+      const { data, error } = await (supabaseAdmin as any)
       .from('user_stats')
       .insert(stats)
       .select()
@@ -680,29 +682,28 @@ export class TransactionManager {
 export class UserPreferencesManager {
   static async getPreferences(userId: string): Promise<UserPreferences | null> {
     try {
-
       const { data, error } = await supabase
         .from('user_preferences')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
       if (error) {
-        if (error.code === 'PGRST116') return null
-        handleSupabaseError(error, 'fetch user preferences')
+        console.error('Error fetching user preferences:', error)
+        return null
       }
 
       return data
     } catch (error) {
       console.error('Error fetching user preferences:', error)
-      throw error
+      return null
     }
   }
 
   static async createPreferences(preferences: UserPreferencesInsert): Promise<UserPreferences> {
     try {
-
-      const { data, error } = await (supabase as any)
+      // Use admin client to bypass RLS for user preferences creation
+      const { data, error } = await (supabaseAdmin as any)
       .from('user_preferences')
       .insert(preferences)
       .select()

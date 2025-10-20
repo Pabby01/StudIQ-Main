@@ -44,7 +44,7 @@
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 1rem;
   /* Web 3 Enhanced Color Scheme - Light Mode */
   --background: oklch(0.99 0.005 240);
   --foreground: oklch(0.09 0.02 240);

@@ -213,7 +213,7 @@ class WalletDataService {
       [COMMON_TOKENS.USDT]: {
         symbol: 'USDT',
         name: 'Tether USD',
-        logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg'
+        logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.jpg'
       },
       [COMMON_TOKENS.RAY]: {
         symbol: 'RAY',

@@ -4,11 +4,13 @@ import { Database } from './database.types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
+// Regular client for authenticated operations
 export const supabase: SupabaseClient<Database> = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -21,6 +23,18 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(supabas
     }
   }
 })
+
+// Service role client for admin operations (bypasses RLS)
+export const supabaseAdmin: SupabaseClient<Database> = createClient<Database>(
+  supabaseUrl, 
+  supabaseServiceKey || supabaseAnonKey, // Fallback to anon key if service key not available
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+)
 
 // Helper function to handle Supabase errors
 export const handleSupabaseError = (error: PostgrestError | null, operation: string) => {

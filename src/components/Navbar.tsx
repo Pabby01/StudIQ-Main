@@ -25,11 +25,11 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <Image
-              src="/logo.svg"
+              src="/logo.jpg"
               alt="StudIQ"
               width={120}
               height={40}
-              className="h-8 w-auto"
+              className="h-8 w-auto rounded-xl"
             />
           </Link>
 

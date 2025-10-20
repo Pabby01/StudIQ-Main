@@ -40,30 +40,21 @@ export class AuthManager {
         isNewUser = true
         const displayName = this.generateDisplayName(privyUser, walletAddress)
         
-        profile = await UserProfileManager.createProfile({
-          user_id: walletAddress,
-          display_name: displayName,
-          email: privyUser.email?.address || null,
-          phone: privyUser.phone?.number || null,
-          wallet_address: walletAddress,
-          avatar_url: this.generateAvatar(displayName)
-        })
+        try {
+          profile = await UserProfileManager.createProfile({
+            user_id: walletAddress,
+            display_name: displayName,
+            email: privyUser.email?.address || null,
+            phone: privyUser.phone?.number || null,
+            wallet_address: walletAddress,
+            avatar_url: this.generateAvatar(displayName)
+          })
 
-        // Create default user stats
-        await UserStatsManager.createStats({
-          user_id: walletAddress,
-          total_points: 0,
-          level: 1,
-          completed_lessons: 0
-        })
-
-        // Create default preferences
-        await UserPreferencesManager.createPreferences({
-          user_id: walletAddress,
-          theme: 'light',
-          notifications_enabled: true,
-          language: 'en'
-        })
+          console.log('User profile created successfully:', walletAddress)
+        } catch (createError) {
+          console.error('Failed to create user profile:', createError)
+          throw new Error('Failed to create user profile')
+        }
       } else {
         // Update existing profile with latest Privy data
         await UserProfileManager.updateProfile(walletAddress, {

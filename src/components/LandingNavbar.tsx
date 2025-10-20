@@ -40,11 +40,11 @@ export function LandingNavbar() {
           <Link href="/" className="flex items-center space-x-2 group">
             <div className="relative">
               <Image
-                src="/logo.svg"
+                src="/logo.jpg"
                 alt="StudIQ"
                 width={120}
                 height={40}
-                className="h-8 w-auto transition-all duration-300 group-hover:scale-105"
+                className="h-8 w-auto rounded-xl transition-all duration-300 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </div>
@@ -106,11 +106,11 @@ export function LandingNavbar() {
                   {/* Mobile Logo */}
                   <div className="flex items-center space-x-2 pb-4 border-b border-purple-500/20">
                     <Image
-                      src="/logo.svg"
+                      src="/logo.jpg"
                       alt="StudIQ"
                       width={100}
                       height={32}
-                      className="h-6 w-auto"
+                      className="h-6 w-auto rounded-lg"
                     />
                     <div className="flex items-center px-2 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-purple-500/20">
                       <Sparkles className="h-3 w-3 text-purple-400 mr-1" />
