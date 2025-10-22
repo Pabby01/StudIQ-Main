@@ -228,7 +228,8 @@ export const useAITutor = (): AITutorState => {
             role: m.role,
             content: m.content
           })),
-          sessionId: currentSession.id
+          sessionId: currentSession.id,
+          userId: user.id
         }),
       });
 
