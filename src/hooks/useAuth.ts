@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 import { secureLogger } from '@/lib/secure-logger'
 import { AuthManager, AuthUser } from '@/lib/auth-manager'
+import { setPrivyToken } from '@/lib/client-database-utils'
 
 export interface UseAuthReturn {
   // Authentication state
@@ -45,7 +46,8 @@ export function useAuth(): UseAuthReturn {
     authenticated: privyAuthenticated,
     user: privyUser,
     login: privyLogin,
-    logout: privyLogout
+    logout: privyLogout,
+    getAccessToken
   } = usePrivy()
   
   const { wallets } = useWallets()
@@ -112,6 +114,17 @@ export function useAuth(): UseAuthReturn {
     )
 
     try {
+      // Obtain Privy access token and store for API calls
+      const privyToken = await (typeof getAccessToken === 'function' ? getAccessToken() : Promise.resolve(null))
+      if (privyToken) {
+        setPrivyToken(privyToken)
+      } else {
+        secureLogger.warn('Privy access token missing; proceeding without token', {
+          timestamp: new Date().toISOString()
+        })
+        setPrivyToken(null)
+      }
+
       const authUser = await Promise.race([
         AuthManager.handleUserLogin(privyUser, walletAddress),
         syncTimeout
@@ -139,7 +152,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [privyAuthenticated, privyUser, walletAddress, syncAttempts, lastSyncTime])
+  }, [privyAuthenticated, privyUser, walletAddress, syncAttempts, lastSyncTime, getAccessToken])
 
   /**
    * Handle user login
@@ -173,6 +186,7 @@ export function useAuth(): UseAuthReturn {
       }
       
       await privyLogout()
+      setPrivyToken(null)
       setUser(null)
     } catch (err) {
       secureLogger.error('Logout failed', err)
@@ -265,6 +279,7 @@ export function useAuth(): UseAuthReturn {
     try {
       await AuthManager.deleteUserAccount(walletAddress)
       await privyLogout()
+      setPrivyToken(null)
       setUser(null)
     } catch (err) {
       secureLogger.error('Failed to delete account', err)
@@ -288,15 +303,17 @@ export function useAuth(): UseAuthReturn {
     setError(null)
 
     try {
+      const privyToken = await (typeof getAccessToken === 'function' ? getAccessToken() : Promise.resolve(null))
+      setPrivyToken(privyToken || null)
       const authUser = await AuthManager.validateUserSession(walletAddress)
       setUser(authUser)
     } catch (err) {
-      secureLogger.error('Failed to refresh user data', error)
+      secureLogger.error('Failed to refresh user data', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh user data')
     } finally {
       setIsLoading(false)
     }
-  }, [walletAddress])
+  }, [walletAddress, getAccessToken])
 
   /**
    * Sync user data when authentication state changes
@@ -316,6 +333,7 @@ export function useAuth(): UseAuthReturn {
       setLastSyncTime(0)
       setUser(null)
       setError(null)
+      setPrivyToken(null)
     }
   }, [privyAuthenticated])
 

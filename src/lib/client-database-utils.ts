@@ -7,6 +7,24 @@ import { secureLogger, secureLogUtils } from './secure-logger'
  * Client-side database utilities that call API routes instead of using supabaseAdmin directly
  */
 
+// Token store for Privy authentication
+let currentPrivyToken: string | null = null
+
+export function setPrivyToken(token: string | null): void {
+  currentPrivyToken = token
+}
+
+// Helper function to build headers with optional Privy token
+function buildHeaders(baseHeaders: Record<string, string> = {}): Record<string, string> {
+  const headers = { ...baseHeaders }
+  
+  if (currentPrivyToken) {
+    headers['x-privy-token'] = currentPrivyToken
+  }
+  
+  return headers
+}
+
 // Helper function to handle API errors consistently
 async function handleApiResponse(response: Response, operation: string): Promise<any> {
   if (!response.ok) {
@@ -54,9 +72,9 @@ export class ClientUserProfileManager {
     try {
       const response = await fetch(`/api/user/profile?user_id=${encodeURIComponent(userId)}`, {
         method: 'GET',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
       })
 
       // Handle 404 as a special case - profile doesn't exist
@@ -80,9 +98,9 @@ export class ClientUserProfileManager {
     try {
       const response = await fetch('/api/user/profile', {
         method: 'POST',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify(profile),
       })
 
@@ -102,9 +120,9 @@ export class ClientUserProfileManager {
     try {
       const response = await fetch('/api/user/profile', {
         method: 'POST',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify(profile),
       })
 
@@ -124,9 +142,9 @@ export class ClientUserProfileManager {
     try {
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ user_id: userId, ...updates }),
       })
 
@@ -146,9 +164,9 @@ export class ClientUserProfileManager {
     try {
       const response = await fetch(`/api/user/profile?user_id=${encodeURIComponent(userId)}`, {
         method: 'DELETE',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
       })
 
       await handleApiResponse(response, 'delete user profile')
@@ -168,9 +186,9 @@ export class ClientUserStatsManager {
     try {
       const response = await fetch(`/api/user/stats?user_id=${encodeURIComponent(userId)}`, {
         method: 'GET',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
       })
 
       // Handle 404 as a special case - stats don't exist
@@ -194,9 +212,9 @@ export class ClientUserStatsManager {
     try {
       const response = await fetch('/api/user/stats', {
         method: 'POST',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify(stats),
       })
 
@@ -216,9 +234,9 @@ export class ClientUserStatsManager {
     try {
       const response = await fetch('/api/user/stats', {
         method: 'PUT',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ ...stats, upsert: true }),
       })
 
@@ -240,9 +258,9 @@ export class ClientUserPreferencesManager {
     try {
       const response = await fetch(`/api/user/preferences?user_id=${encodeURIComponent(userId)}`, {
         method: 'GET',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
       })
 
       // Handle 404 as a special case - preferences don't exist
@@ -266,9 +284,9 @@ export class ClientUserPreferencesManager {
     try {
       const response = await fetch('/api/user/preferences', {
         method: 'POST',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify(preferences),
       })
 
@@ -288,9 +306,9 @@ export class ClientUserPreferencesManager {
     try {
       const response = await fetch('/api/user/preferences', {
         method: 'PUT',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ ...preferences, upsert: true }),
       })
 
@@ -310,9 +328,9 @@ export class ClientUserPreferencesManager {
     try {
       const response = await fetch('/api/user/preferences', {
         method: 'PUT',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ user_id: userId, ...updates }),
       })
 
@@ -365,9 +383,9 @@ export class ClientUserBatchManager {
     try {
       const response = await fetch(`/api/user/batch?user_id=${encodeURIComponent(userId)}`, {
         method: 'GET',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
       })
 
       const data = await handleApiResponse(response, 'get batch user data')
@@ -389,9 +407,9 @@ export class ClientUserBatchManager {
     try {
       const response = await fetch('/api/user/batch', {
         method: 'POST',
-        headers: {
+        headers: buildHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify(request),
       })
 
