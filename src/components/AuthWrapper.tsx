@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import LoadingTimeout from './LoadingTimeout';
@@ -11,7 +11,7 @@ interface AuthWrapperProps {
   onboardingComponent?: React.ComponentType<{ onComplete: () => void }>;
 }
 
-export default function AuthWrapper({ 
+const AuthWrapper = React.memo(function AuthWrapper({ 
   children, 
   requireAuth = false, 
   onboardingComponent: OnboardingComponent 
@@ -26,78 +26,81 @@ export default function AuthWrapper({
   
   const [showOnboarding, setShowOnboarding] = useState(false);
 
+  // Memoize authentication state to prevent unnecessary re-renders
+  const authState = useMemo(() => ({
+    isReady,
+    isAuthenticated,
+    isLoading,
+    hasUser: !!user,
+    hasError: !!error
+  }), [isReady, isAuthenticated, isLoading, user, error]);
+
   // Determine if onboarding should be shown
   useEffect(() => {
-    if (!isReady) return;
+    if (!authState.isReady) return;
 
     // Show onboarding if auth is required but user is not authenticated
-    const needsOnboarding = requireAuth && !isAuthenticated;
+    const needsOnboarding = requireAuth && !authState.isAuthenticated;
     setShowOnboarding(needsOnboarding);
-  }, [isReady, isAuthenticated, requireAuth]);
+  }, [authState.isReady, authState.isAuthenticated, requireAuth]);
 
   // Loading state while auth system initializes
-  if (!isReady) {
+  if (!authState.isReady || authState.isLoading) {
     return (
-      <LoadingTimeout 
-        timeout={20000} 
-        message="Authentication system is taking longer than expected to initialize."
-      >
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-            <p className="text-muted-foreground">Initializing authentication...</p>
-          </div>
-        </div>
-      </LoadingTimeout>
-    );
-  }
-
-  // Show loading state during authentication
-  if (isLoading) {
-    return (
-      <LoadingTimeout 
-        timeout={25000} 
-        message="User authentication is taking longer than expected."
-      >
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-            <p className="text-muted-foreground">Authenticating user...</p>
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md max-w-md mx-auto">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </LoadingTimeout>
-    );
-  }
-
-  // Show error state if authentication failed
-  if (error && requireAuth) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="text-red-600">Authentication Error</div>
-          <p className="text-muted-foreground">{error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Initializing...</p>
+          <LoadingTimeout>
+            <div></div>
+          </LoadingTimeout>
         </div>
       </div>
     );
   }
 
-  // Show onboarding if needed and component is provided
+  // Error state
+  if (authState.hasError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <strong className="font-bold">Authentication Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+          <p className="text-gray-600 mb-4">
+            Please refresh the page or try logging in again.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show onboarding if needed
   if (showOnboarding && OnboardingComponent) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <OnboardingComponent onComplete={() => setShowOnboarding(false)} />
-      </div>
+      <OnboardingComponent 
+        onComplete={() => setShowOnboarding(false)} 
+      />
     );
   }
 
-  // Show children if all requirements are met
-  return <>{children}</>;
-}
+  // Render children if authenticated or auth not required
+  if (!requireAuth || authState.isAuthenticated) {
+    return <>{children}</>;
+  }
+
+  // Fallback - should not reach here
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="text-center">
+        <p className="text-gray-600">Access denied</p>
+      </div>
+    </div>
+  );
+});
+
+export default AuthWrapper;
 
 // Hook for components that need authentication status
 export function useAuthStatus() {

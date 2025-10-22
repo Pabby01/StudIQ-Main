@@ -4,8 +4,8 @@ import { getOpenAIClient, FINANCIAL_TUTOR_SYSTEM_PROMPT } from '@/lib/openai';
 import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase';
 import { secureLogger } from '@/lib/secure-logger';
 import { 
-  validateUserAuth, 
-  validatePrivySession, 
+  validateUserAuthWithRLS, 
+  cleanupSecureAuth, 
   checkRateLimit,
   sanitizeInput
 } from '@/lib/auth-middleware';
@@ -48,24 +48,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, userId)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, userId, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, userId)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
     }
 
     // Sanitize inputs
     const sanitizedSessionId = sanitizeInput(sessionId, 100)
     const sanitizedUserId = sanitizeInput(userId, 100)
 
-    // Check if OpenAI API key is configured (without exposing key details)
+    try {
+      // Check if OpenAI API key is configured (without exposing key details)
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       secureLogger.security('OpenAI API key not configured', {
@@ -230,7 +227,10 @@ export async function POST(request: NextRequest) {
       .update({ updated_at: new Date().toISOString() })
       .eq('id', sanitizedSessionId);
 
-    return NextResponse.json({ message: sanitizedAIMessage });
+      return NextResponse.json({ message: sanitizedAIMessage });
+    } finally {
+      await cleanupSecureAuth()
+    }
   } catch (error: unknown) {
     // Log error without exposing sensitive details
     secureLogger.error('Chat API error', {

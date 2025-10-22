@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -40,6 +41,70 @@ export interface UseAuthReturn {
   hasWallet: boolean
 }
 
+// Session storage keys
+const USER_CACHE_KEY = 'studiq_user_cache'
+const TOKEN_CACHE_KEY = 'studiq_privy_token'
+const CACHE_EXPIRY_KEY = 'studiq_cache_expiry'
+const CACHE_DURATION = 30 * 60 * 1000 // 30 minutes
+
+// Helper functions for session persistence
+const saveUserToCache = (user: AuthUser) => {
+  try {
+    localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user))
+    localStorage.setItem(CACHE_EXPIRY_KEY, (Date.now() + CACHE_DURATION).toString())
+  } catch (error) {
+    secureLogger.warn('Failed to save user to cache', { error })
+  }
+}
+
+const loadUserFromCache = (): AuthUser | null => {
+  try {
+    const cachedUser = localStorage.getItem(USER_CACHE_KEY)
+    const cacheExpiry = localStorage.getItem(CACHE_EXPIRY_KEY)
+    
+    if (!cachedUser || !cacheExpiry) return null
+    
+    // Check if cache is expired
+    if (Date.now() > parseInt(cacheExpiry)) {
+      clearUserCache()
+      return null
+    }
+    
+    return JSON.parse(cachedUser)
+  } catch (error) {
+    secureLogger.warn('Failed to load user from cache', { error })
+    clearUserCache()
+    return null
+  }
+}
+
+const clearUserCache = () => {
+  try {
+    localStorage.removeItem(USER_CACHE_KEY)
+    localStorage.removeItem(CACHE_EXPIRY_KEY)
+    localStorage.removeItem(TOKEN_CACHE_KEY)
+  } catch (error) {
+    secureLogger.warn('Failed to clear user cache', { error })
+  }
+}
+
+const saveTokenToCache = (token: string) => {
+  try {
+    localStorage.setItem(TOKEN_CACHE_KEY, token)
+  } catch (error) {
+    secureLogger.warn('Failed to save token to cache', { error })
+  }
+}
+
+const loadTokenFromCache = (): string | null => {
+  try {
+    return localStorage.getItem(TOKEN_CACHE_KEY)
+  } catch (error) {
+    secureLogger.warn('Failed to load token from cache', { error })
+    return null
+  }
+}
+
 export function useAuth(): UseAuthReturn {
   const {
     ready: privyReady,
@@ -55,69 +120,66 @@ export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [syncAttempts, setSyncAttempts] = useState(0)
-  const [lastSyncTime, setLastSyncTime] = useState<number>(0)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   // Get primary wallet address
   const walletAddress = wallets.length > 0 ? wallets[0].address : null
   const hasWallet = wallets.length > 0
 
   /**
+   * Initialize user data from cache or sync with server
+   */
+  const initializeUser = useCallback(async () => {
+    if (isInitialized) return
+    
+    setIsInitialized(true)
+    
+    // Try to load user from cache first
+    const cachedUser = loadUserFromCache()
+    if (cachedUser && privyAuthenticated && walletAddress === cachedUser.walletAddress) {
+      setUser(cachedUser)
+      
+      // Load cached token
+      const cachedToken = loadTokenFromCache()
+      if (cachedToken) {
+        setPrivyToken(cachedToken)
+      }
+      
+      secureLogger.info('User loaded from cache', {
+        walletAddress: cachedUser.walletAddress,
+        timestamp: new Date().toISOString()
+      })
+      return
+    }
+    
+    // If no valid cache, proceed with sync
+    if (privyAuthenticated && privyUser && walletAddress) {
+      await syncUserData()
+    }
+  }, [isInitialized, privyAuthenticated, privyUser, walletAddress])
+
+  /**
    * Sync user data with Supabase when authentication state changes
    */
   const syncUserData = useCallback(async () => {
-    // Prevent infinite loops and rate limiting
-    const now = Date.now()
-    const timeSinceLastSync = now - lastSyncTime
-    const MIN_SYNC_INTERVAL = 2000 // 2 seconds minimum between syncs
-    const MAX_SYNC_ATTEMPTS = 3
-
-    if (timeSinceLastSync < MIN_SYNC_INTERVAL && syncAttempts > 0) {
-      secureLogger.info('Skipping sync - too soon since last attempt', {
-        timeSinceLastSync,
-        minInterval: MIN_SYNC_INTERVAL,
-        syncAttempts,
-        timestamp: new Date().toISOString()
-      })
-      return
-    }
-
-    if (syncAttempts >= MAX_SYNC_ATTEMPTS) {
-      secureLogger.warn('Max sync attempts reached, stopping', {
-        syncAttempts,
-        maxAttempts: MAX_SYNC_ATTEMPTS,
-        timestamp: new Date().toISOString()
-      })
-      setError('Authentication failed after multiple attempts. Please refresh the page.')
-      return
-    }
-
     if (!privyAuthenticated || !privyUser || !walletAddress) {
       setUser(null)
-      setSyncAttempts(0)
+      clearUserCache()
       return
     }
 
-    secureLogger.info('Starting user sync attempt', {
-      currentAttempt: syncAttempts + 1,
-      maxAttempts: MAX_SYNC_ATTEMPTS,
+    secureLogger.info('Starting user sync', {
       timestamp: new Date().toISOString()
     })
     setIsLoading(true)
     setError(null)
-    setLastSyncTime(now)
-    setSyncAttempts(prev => prev + 1)
-
-    // Add timeout to prevent hanging
-    const syncTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Authentication timeout')), 15000)
-    )
 
     try {
       // Obtain Privy access token and store for API calls
       const privyToken = await (typeof getAccessToken === 'function' ? getAccessToken() : Promise.resolve(null))
       if (privyToken) {
         setPrivyToken(privyToken)
+        saveTokenToCache(privyToken)
       } else {
         secureLogger.warn('Privy access token missing; proceeding without token', {
           timestamp: new Date().toISOString()
@@ -125,13 +187,10 @@ export function useAuth(): UseAuthReturn {
         setPrivyToken(null)
       }
 
-      const authUser = await Promise.race([
-        AuthManager.handleUserLogin(privyUser, walletAddress),
-        syncTimeout
-      ]) as AuthUser
+      const authUser = await AuthManager.handleUserLogin(privyUser, walletAddress)
 
       setUser(authUser)
-      setSyncAttempts(0) // Reset on success
+      saveUserToCache(authUser) // Cache the user data
       secureLogger.info('User sync completed successfully', {
         timestamp: new Date().toISOString()
       })
@@ -149,10 +208,11 @@ export function useAuth(): UseAuthReturn {
       }
       
       setUser(null)
+      clearUserCache()
     } finally {
       setIsLoading(false)
     }
-  }, [privyAuthenticated, privyUser, walletAddress, syncAttempts, lastSyncTime, getAccessToken])
+  }, [privyAuthenticated, privyUser, walletAddress, getAccessToken])
 
   /**
    * Handle user login
@@ -188,6 +248,8 @@ export function useAuth(): UseAuthReturn {
       await privyLogout()
       setPrivyToken(null)
       setUser(null)
+      clearUserCache() // Clear cached data on logout
+      setIsInitialized(false) // Reset initialization state
     } catch (err) {
       secureLogger.error('Logout failed', err)
       setError(err instanceof Error ? err.message : 'Logout failed')
@@ -216,14 +278,20 @@ export function useAuth(): UseAuthReturn {
       const updatedProfile = await AuthManager.updateUserProfile(walletAddress, updates)
       
       // Update local user state
-      setUser(prev => prev ? {
-        ...prev,
+      const updatedUser = user ? {
+        ...user,
         displayName: updatedProfile.display_name,
         email: updatedProfile.email || undefined,
         phone: updatedProfile.phone || undefined,
         avatar: updatedProfile.avatar_url || undefined,
         profile: updatedProfile
-      } : null)
+      } : null
+      setUser(updatedUser)
+      
+      // Save to cache
+      if (updatedUser) {
+        saveUserToCache(updatedUser)
+      }
     } catch (err) {
       secureLogger.error('Failed to update profile', err)
       setError(err instanceof Error ? err.message : 'Failed to update profile')
@@ -252,10 +320,16 @@ export function useAuth(): UseAuthReturn {
       const updatedPrefs = await AuthManager.updateUserPreferences(walletAddress, preferences)
       
       // Update local user state
-      setUser(prev => prev ? {
-        ...prev,
+      const updatedUser = user ? {
+        ...user,
         preferences: updatedPrefs
-      } : null)
+      } : null
+      setUser(updatedUser)
+      
+      // Save to cache
+      if (updatedUser) {
+        saveUserToCache(updatedUser)
+      }
     } catch (err) {
       secureLogger.error('Failed to update preferences', err)
       setError(err instanceof Error ? err.message : 'Failed to update preferences')
@@ -296,6 +370,7 @@ export function useAuth(): UseAuthReturn {
   const refreshUser = useCallback(async () => {
     if (!walletAddress) {
       setUser(null)
+      clearUserCache()
       return
     }
 
@@ -304,36 +379,56 @@ export function useAuth(): UseAuthReturn {
 
     try {
       const privyToken = await (typeof getAccessToken === 'function' ? getAccessToken() : Promise.resolve(null))
-      setPrivyToken(privyToken || null)
+      if (privyToken) {
+        setPrivyToken(privyToken)
+        saveTokenToCache(privyToken)
+      }
+      
       const authUser = await AuthManager.validateUserSession(walletAddress)
       setUser(authUser)
+      
+      if (authUser) {
+        saveUserToCache(authUser) // Cache the refreshed user data
+      } else {
+        clearUserCache()
+      }
     } catch (err) {
       secureLogger.error('Failed to refresh user data', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh user data')
+      clearUserCache()
     } finally {
       setIsLoading(false)
     }
   }, [walletAddress, getAccessToken])
 
   /**
-   * Sync user data when authentication state changes
+   * Initialize user data when Privy is ready
    */
   useEffect(() => {
-    if (privyReady && privyAuthenticated && walletAddress && !user && !isLoading) {
+    if (privyReady && !isInitialized) {
+      initializeUser()
+    }
+  }, [privyReady, isInitialized, initializeUser])
+
+  /**
+   * Sync user data when authentication state changes (only if not already cached)
+   */
+  useEffect(() => {
+    if (privyReady && privyAuthenticated && walletAddress && !user && !isLoading && isInitialized) {
       syncUserData()
     }
-  }, [privyReady, privyAuthenticated, walletAddress, user, isLoading, syncUserData])
+  }, [privyReady, privyAuthenticated, walletAddress, user, isLoading, isInitialized, syncUserData])
 
   /**
    * Reset sync attempts when user logs out
    */
   useEffect(() => {
     if (!privyAuthenticated) {
-      setSyncAttempts(0)
-      setLastSyncTime(0)
       setUser(null)
       setError(null)
       setPrivyToken(null)
+      clearUserCache()
+      setIsInitialized(false)
     }
   }, [privyAuthenticated])
 

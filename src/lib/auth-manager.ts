@@ -97,10 +97,7 @@ export class AuthManager {
       display_name: displayName,
       email: privyUser.email?.address || null,
       phone: privyUser.phone?.number || null,
-      avatar_url: avatar,
-      auth_method: this.getAuthMethod(privyUser),
-      last_login: new Date().toISOString(),
-      is_active: true
+      avatar_url: avatar
     }
 
     const statsData = {
@@ -122,148 +119,68 @@ export class AuthManager {
     }
 
     try {
-      secureLogger.info('Performing atomic batch user data sync...', {
+      secureLogger.info('Performing user data sync', {
         walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
         isNewUser
       })
 
-      const batchResult = await ClientUserBatchManager.upsertBatchUserData({
-        user_id: privyUser.id,
-        profile: profileData,
-        stats: statsData,
-        preferences: preferencesData
-      })
+      // Direct profile upsert without batch operations
+      const profile = await ClientUserProfileManager.upsertProfile(profileData)
 
-      if (batchResult.success) {
-        secureLogger.info('Batch user sync completed successfully', {
-          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
-          profileUpdated: batchResult.data.profile !== null,
-          statsUpdated: batchResult.data.stats !== null,
-          preferencesUpdated: batchResult.data.preferences !== null
-        })
-
-        return {
-          id: privyUser.id,
-          walletAddress,
-          email: privyUser.email?.address,
-          phone: privyUser.phone?.number,
-          displayName,
-          avatar,
-          isNewUser,
-          profile: batchResult.data.profile || undefined,
-          stats: batchResult.data.stats || undefined,
-          preferences: batchResult.data.preferences || undefined
-        }
-      } else {
-        throw new Error(`Batch sync failed: ${batchResult.errors}`)
-      }
-    } catch (batchError) {
-      secureLogger.error('Batch sync failed, attempting fallback', {
+      secureLogger.info('User profile upserted successfully', {
         walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
-        error: batchError instanceof Error ? batchError.message : 'Unknown error'
+        isNewUser
       })
 
+      let stats: UserStats | null = null
       try {
-        const profile = await this.retryOperation(
-          () => ClientUserProfileManager.upsertProfile(profileData),
-          'profile upsert'
-        )
-
-        secureLogger.info('User profile upserted successfully (fallback)', {
+        stats = await ClientUserStatsManager.upsertStats(statsData)
+      } catch (statsError) {
+        secureLogger.error('Failed to upsert user stats', {
           walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
-          isNewUser
+          error: statsError instanceof Error ? statsError.message : 'Unknown error'
         })
-
-        let stats: UserStats | null = null
-        try {
-          stats = await this.retryOperation(
-            () => ClientUserStatsManager.upsertStats(statsData),
-            'stats upsert'
-          )
-        } catch (statsError) {
-          secureLogger.error('Failed to upsert user stats (fallback)', {
-            walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
-            error: statsError instanceof Error ? statsError.message : 'Unknown error'
-          })
-        }
-
-        let preferences: UserPreferences | null = null
-        try {
-          preferences = await this.retryOperation(
-            () => ClientUserPreferencesManager.upsertPreferences(preferencesData),
-            'preferences upsert'
-          )
-        } catch (preferencesError) {
-          secureLogger.error('Failed to upsert user preferences (fallback)', {
-            walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
-            error: preferencesError instanceof Error ? preferencesError.message : 'Unknown error'
-          })
-        }
-
-        secureLogger.info('User sync completed successfully (fallback)', {
-          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
-          hasProfile: !!profile,
-          hasStats: !!stats,
-          hasPreferences: !!preferences
-        })
-
-        return {
-          id: privyUser.id,
-          walletAddress,
-          email: privyUser.email?.address,
-          phone: privyUser.phone?.number,
-          displayName,
-          avatar,
-          isNewUser,
-          profile: profile || undefined,
-          stats: stats || undefined,
-          preferences: preferences || undefined
-        }
-      } catch (fallbackError) {
-        secureLogger.error('Critical error during fallback sync', {
-          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
-          error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error'
-        })
-        throw fallbackError
       }
+
+      let preferences: UserPreferences | null = null
+      try {
+        preferences = await ClientUserPreferencesManager.upsertPreferences(preferencesData)
+      } catch (preferencesError) {
+        secureLogger.error('Failed to upsert user preferences', {
+          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+          error: preferencesError instanceof Error ? preferencesError.message : 'Unknown error'
+        })
+      }
+
+      secureLogger.info('User sync completed successfully', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        hasProfile: !!profile,
+        hasStats: !!stats,
+        hasPreferences: !!preferences
+      })
+
+      return {
+        id: privyUser.id,
+        walletAddress,
+        email: privyUser.email?.address,
+        phone: privyUser.phone?.number,
+        displayName,
+        avatar,
+        isNewUser,
+        profile: profile || undefined,
+        stats: stats || undefined,
+        preferences: preferences || undefined
+      }
+    } catch (error) {
+      secureLogger.error('User sync failed', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+      throw error
     }
   }
 
-  private static async retryOperation<T>(
-    operation: () => Promise<T>,
-    operationName: string,
-    maxRetries: number = 3
-  ): Promise<T> {
-    let lastError: Error
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation()
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error('Unknown error')
-        
-        if (attempt === maxRetries) {
-          secureLogger.error(`Failed to ${operationName} after ${maxRetries} attempts`, {
-            error: lastError.message,
-            attempts: maxRetries
-          })
-          throw lastError
-        }
-
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-        secureLogger.warn(`Retrying ${operationName} (attempt ${attempt}/${maxRetries}) after ${delay}ms`, {
-          error: lastError.message,
-          attempt,
-          maxRetries,
-          delay
-        })
-        
-        await new Promise(resolve => setTimeout(resolve, delay))
-      }
-    }
-
-    throw lastError!
-  }
 
   /**
    * Handle user login - sync with database and return user data

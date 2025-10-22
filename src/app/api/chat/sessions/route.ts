@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase'
 import { secureLogger } from '@/lib/secure-logger'
 import { 
-  validateUserAuth, 
-  validatePrivySession, 
+  validateUserAuthWithRLS, 
+  cleanupSecureAuth, 
   checkRateLimit,
   sanitizeInput
 } from '@/lib/auth-middleware'
@@ -40,33 +40,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, userId)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, userId, 'read')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, userId)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
+    }
+
+    try {
+      // Sanitize the user ID input
+      const sanitizedUserId = sanitizeInput(userId, 100)
+
+      const { data, error } = await (supabaseAdmin as any)
+        .from('ai_chat_sessions')
+        .select('*')
+        .eq('user_id', sanitizedUserId)
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        handleSupabaseError(error, 'get chat sessions')
       }
+
+      return NextResponse.json({ sessions: data || [] }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
     }
-
-    // Sanitize the user ID input
-    const sanitizedUserId = sanitizeInput(userId, 100)
-
-    const { data, error } = await (supabaseAdmin as any)
-      .from('ai_chat_sessions')
-      .select('*')
-      .eq('user_id', sanitizedUserId)
-      .order('updated_at', { ascending: false })
-
-    if (error) {
-      handleSupabaseError(error, 'get chat sessions')
-    }
-
-    return NextResponse.json({ sessions: data || [] }, { status: 200 })
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Chat sessions GET error', {
@@ -113,17 +113,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, user_id)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, user_id, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, user_id)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
     }
 
     // Sanitize and validate input data
@@ -144,24 +140,28 @@ export async function POST(request: NextRequest) {
       difficulty_level: sanitizedDifficultyLevel
     }
 
-    const { data, error } = await (supabaseAdmin as any)
-      .from('ai_chat_sessions')
-      .insert(session)
-      .select()
-      .single()
+    try {
+      const { data, error } = await (supabaseAdmin as any)
+        .from('ai_chat_sessions')
+        .insert(session)
+        .select()
+        .single()
 
-    if (error) {
-      handleSupabaseError(error, 'create chat session')
+      if (error) {
+        handleSupabaseError(error, 'create chat session')
+      }
+
+      if (!data) {
+        return NextResponse.json(
+          { error: 'Failed to create chat session' },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({ session: data }, { status: 201 })
+    } finally {
+      await cleanupSecureAuth()
     }
-
-    if (!data) {
-      return NextResponse.json(
-        { error: 'Failed to create chat session' },
-        { status: 500 }
-      )
-    }
-
-    return NextResponse.json({ session: data }, { status: 201 })
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Chat sessions POST error', {
@@ -209,52 +209,52 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, userId)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, userId, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, userId)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
-    }
-
-    // Sanitize input parameters
-    const sanitizedSessionId = sanitizeInput(sessionId, 100)
-    const sanitizedUserId = sanitizeInput(userId, 100)
-
-    // Ensure the session belongs to the user
-    const { data: session, error: fetchError } = await (supabaseAdmin as any)
-      .from('ai_chat_sessions')
-      .select('id, user_id')
-      .eq('id', sanitizedSessionId)
-      .single()
-
-    if (fetchError) {
-      handleSupabaseError(fetchError, 'verify chat session ownership')
-    }
-
-    if (!session || session.user_id !== sanitizedUserId) {
       return NextResponse.json(
-        { error: 'Forbidden: session does not belong to user' },
-        { status: 403 }
+        { error: authResult.error },
+        { status: authResult.statusCode }
       )
     }
 
-    const { error } = await (supabaseAdmin as any)
-      .from('ai_chat_sessions')
-      .delete()
-      .eq('id', sanitizedSessionId)
-      .eq('user_id', sanitizedUserId)
+    try {
+      // Sanitize input parameters
+      const sanitizedSessionId = sanitizeInput(sessionId, 100)
+      const sanitizedUserId = sanitizeInput(userId, 100)
 
-    if (error) {
-      handleSupabaseError(error, 'delete chat session')
+      // Ensure the session belongs to the user
+      const { data: session, error: fetchError } = await (supabaseAdmin as any)
+        .from('ai_chat_sessions')
+        .select('id, user_id')
+        .eq('id', sanitizedSessionId)
+        .single()
+
+      if (fetchError) {
+        handleSupabaseError(fetchError, 'verify chat session ownership')
+      }
+
+      if (!session || session.user_id !== sanitizedUserId) {
+        return NextResponse.json(
+          { error: 'Forbidden: session does not belong to user' },
+          { status: 403 }
+        )
+      }
+
+      const { error } = await (supabaseAdmin as any)
+        .from('ai_chat_sessions')
+        .delete()
+        .eq('id', sanitizedSessionId)
+        .eq('user_id', sanitizedUserId)
+
+      if (error) {
+        handleSupabaseError(error, 'delete chat session')
+      }
+
+      return NextResponse.json({ message: 'Session deleted successfully' }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
     }
-
-    return NextResponse.json({ message: 'Session deleted successfully' }, { status: 200 })
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Chat sessions DELETE error', {

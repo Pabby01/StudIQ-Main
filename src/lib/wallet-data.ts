@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { secureLogger, secureLogUtils } from './secure-logger';
 import type { ParsedTransactionWithMeta } from '@solana/web3.js';

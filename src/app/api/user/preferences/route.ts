@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { UserPreferencesManager } from '@/lib/database-utils'
 import { secureLogger } from '@/lib/secure-logger'
 import { 
-  validateUserAuth, 
-  validatePrivySession, 
+  validateUserAuthWithRLS, 
+  cleanupSecureAuth, 
   checkRateLimit,
   sanitizeInput
 } from '@/lib/auth-middleware'
@@ -41,32 +41,32 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, userId)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, userId, 'read')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, userId)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
-    }
-
-    // Sanitize the user ID input
-    const sanitizedUserId = sanitizeInput(userId, 100)
-
-    const preferences = await UserPreferencesManager.getPreferences(sanitizedUserId)
-    
-    if (!preferences) {
       return NextResponse.json(
-        { error: 'User preferences not found' },
-        { status: 404 }
+        { error: authResult.error },
+        { status: authResult.statusCode }
       )
     }
-    
-    return NextResponse.json({ preferences }, { status: 200 })
+
+    try {
+      // Sanitize the user ID input
+      const sanitizedUserId = sanitizeInput(userId, 100)
+
+      const preferences = await UserPreferencesManager.getPreferences(sanitizedUserId)
+      
+      if (!preferences) {
+        return NextResponse.json(
+          { error: 'User preferences not found' },
+          { status: 404 }
+        )
+      }
+      
+      return NextResponse.json({ preferences }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
+    }
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Preferences GET error', {
@@ -115,17 +115,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, preferencesData.user_id)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, preferencesData.user_id, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, preferencesData.user_id)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
     }
 
     // Sanitize input data
@@ -154,16 +150,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if preferences already exist
-    const existingPreferences = await UserPreferencesManager.getPreferences(sanitizedData.user_id)
-    if (existingPreferences) {
-      return NextResponse.json({ preferences: existingPreferences }, { status: 200 })
-    }
+    try {
+      // Check if preferences already exist
+      const existingPreferences = await UserPreferencesManager.getPreferences(sanitizedData.user_id)
+      if (existingPreferences) {
+        return NextResponse.json({ preferences: existingPreferences }, { status: 200 })
+      }
 
-    // Create the user preferences using the server-side admin client
-    const preferences = await UserPreferencesManager.createPreferences(sanitizedData)
-    
-    return NextResponse.json({ preferences }, { status: 201 })
+      // Create the user preferences using the server-side admin client
+      const preferences = await UserPreferencesManager.createPreferences(sanitizedData)
+      
+      return NextResponse.json({ preferences }, { status: 201 })
+    } finally {
+      await cleanupSecureAuth()
+    }
   } catch (error) {
     // Handle race condition: if preferences were created by another request
     if (error instanceof Error && (error.message.includes('Data already exists') || error.message.includes('duplicate key value violates unique constraint')) && preferencesData?.user_id) {
@@ -226,17 +226,13 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, preferencesData.user_id)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, preferencesData.user_id, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, preferencesData.user_id)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
     }
 
     // Sanitize input data
@@ -265,20 +261,24 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Check if this is an upsert operation
-    if (sanitizedPreferencesData.upsert) {
-      // Remove the upsert flag before passing to the database
-      const { upsert, ...cleanPreferencesData } = sanitizedPreferencesData
-      const preferences = await UserPreferencesManager.upsertPreferences(cleanPreferencesData)
-      return NextResponse.json({ preferences }, { status: 200 })
-    }
+    try {
+      // Check if this is an upsert operation
+      if (sanitizedPreferencesData.upsert) {
+        // Remove the upsert flag before passing to the database
+        const { upsert, ...cleanPreferencesData } = sanitizedPreferencesData
+        const preferences = await UserPreferencesManager.upsertPreferences(cleanPreferencesData)
+        return NextResponse.json({ preferences }, { status: 200 })
+      }
 
-    // Regular update operation
-    const { user_id, ...updates } = sanitizedPreferencesData
-    const sanitizedUserId = sanitizeInput(user_id, 100)
-    const preferences = await UserPreferencesManager.updatePreferences(sanitizedUserId, updates)
-    
-    return NextResponse.json({ preferences }, { status: 200 })
+      // Regular update operation
+      const { user_id, ...updates } = sanitizedPreferencesData
+      const sanitizedUserId = sanitizeInput(user_id, 100)
+      const preferences = await UserPreferencesManager.updatePreferences(sanitizedUserId, updates)
+      
+      return NextResponse.json({ preferences }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
+    }
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Preferences PUT error', {

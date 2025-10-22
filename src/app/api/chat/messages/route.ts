@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase'
 import { secureLogger } from '@/lib/secure-logger'
 import { 
-  validateUserAuth, 
-  validatePrivySession, 
+  validateUserAuthWithRLS, 
+  cleanupSecureAuth, 
   checkRateLimit,
   sanitizeInput
 } from '@/lib/auth-middleware'
@@ -49,62 +49,62 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, userId)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, userId, 'read')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, userId)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
     }
 
     // Sanitize inputs
     const sanitizedSessionId = sanitizeInput(sessionId, 100)
     const sanitizedUserId = sanitizeInput(userId, 100)
 
-    // Verify session ownership before retrieving messages
-    const { data: session, error: sessionError } = await (supabaseAdmin as any)
-      .from('ai_chat_sessions')
-      .select('id, user_id')
-      .eq('id', sanitizedSessionId)
-      .single()
+    try {
+      // Verify session ownership before retrieving messages
+      const { data: session, error: sessionError } = await (supabaseAdmin as any)
+        .from('ai_chat_sessions')
+        .select('id, user_id')
+        .eq('id', sanitizedSessionId)
+        .single()
 
-    if (sessionError) {
-      handleSupabaseError(sessionError, 'verify chat session ownership')
+      if (sessionError) {
+        handleSupabaseError(sessionError, 'verify chat session ownership')
+      }
+
+      if (!session) {
+        return NextResponse.json(
+          { error: 'Session not found' },
+          { status: 404 }
+        )
+      }
+
+      // Enforce strict session ownership validation
+      if (session.user_id !== sanitizedUserId) {
+        return NextResponse.json(
+          { error: 'Forbidden: session does not belong to user' },
+          { status: 403 }
+        )
+      }
+
+      // Retrieve messages for the validated session
+      const { data, error } = await (supabaseAdmin as any)
+        .from('ai_chat_messages')
+        .select('id, role, content, created_at')
+        .eq('session_id', sanitizedSessionId)
+        .eq('user_id', sanitizedUserId) // Additional security check
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        handleSupabaseError(error, 'get chat messages')
+      }
+
+      return NextResponse.json({ messages: data || [] }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
     }
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      )
-    }
-
-    // Enforce strict session ownership validation
-    if (session.user_id !== sanitizedUserId) {
-      return NextResponse.json(
-        { error: 'Forbidden: session does not belong to user' },
-        { status: 403 }
-      )
-    }
-
-    // Retrieve messages for the validated session
-    const { data, error } = await (supabaseAdmin as any)
-      .from('ai_chat_messages')
-      .select('id, role, content, created_at')
-      .eq('session_id', sanitizedSessionId)
-      .eq('user_id', sanitizedUserId) // Additional security check
-      .order('created_at', { ascending: true })
-
-    if (error) {
-      handleSupabaseError(error, 'get chat messages')
-    }
-
-    return NextResponse.json({ messages: data || [] }, { status: 200 })
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Chat messages API error', {

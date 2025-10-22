@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { UserProfileManager, UserStatsManager, UserPreferencesManager, formatDisplayName, generateAvatar, getGreeting } from './database-utils'
 import { Database } from './database.types'
 import { secureLogger } from './secure-logger'

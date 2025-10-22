@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { UserProfileManager } from '@/lib/database-utils'
 import { secureLogger } from '@/lib/secure-logger'
 import { 
-  validateUserAuth, 
-  validatePrivySession, 
+  validateUserAuthWithRLS, 
+  cleanupSecureAuth,
   checkRateLimit,
   sanitizeInput,
   validateDisplayName,
@@ -43,33 +43,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, userId)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, userId, 'read')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, userId)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
-    }
-
-    // Sanitize the user ID input
-    const sanitizedUserId = sanitizeInput(userId, 100)
-
-    // Get the user profile
-    const profile = await UserProfileManager.getProfile(sanitizedUserId)
-    
-    if (!profile) {
       return NextResponse.json(
-        { error: 'Profile not found' },
-        { status: 404 }
+        { error: authResult.error },
+        { status: authResult.statusCode }
       )
     }
+
+    try {
+      // Sanitize the user ID input
+      const sanitizedUserId = sanitizeInput(userId, 100)
+
+      // Get the user profile
+      const profile = await UserProfileManager.getProfile(sanitizedUserId)
     
-    return NextResponse.json({ profile }, { status: 200 })
+      if (!profile) {
+        return NextResponse.json(
+          { error: 'Profile not found' },
+          { status: 404 }
+        )
+      }
+      
+      return NextResponse.json({ profile }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
+    }
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Profile GET error', {
@@ -118,54 +118,54 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, profileData.user_id)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, profileData.user_id, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, profileData.user_id)
-      if (!privyResult.success) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
+    }
+
+    try {
+      // Sanitize and validate input data
+      const sanitizedData = {
+        ...profileData,
+        user_id: sanitizeInput(profileData.user_id, 100),
+        display_name: profileData.display_name ? sanitizeInput(profileData.display_name, 50) : undefined,
+        email: profileData.email ? sanitizeInput(profileData.email, 255) : undefined,
+        wallet_address: profileData.wallet_address ? sanitizeInput(profileData.wallet_address, 100) : undefined
+      }
+
+      // Additional validation for specific fields
+      if (sanitizedData.display_name && !validateDisplayName(sanitizedData.display_name)) {
         return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
+          { error: 'Invalid display name format' },
+          { status: 400 }
         )
       }
-    }
 
-    // Sanitize and validate input data
-    const sanitizedData = {
-      ...profileData,
-      user_id: sanitizeInput(profileData.user_id, 100),
-      display_name: profileData.display_name ? sanitizeInput(profileData.display_name, 50) : undefined,
-      email: profileData.email ? sanitizeInput(profileData.email, 255) : undefined,
-      wallet_address: profileData.wallet_address ? sanitizeInput(profileData.wallet_address, 100) : undefined
-    }
+      if (sanitizedData.email && !validateEmail(sanitizedData.email)) {
+        return NextResponse.json(
+          { error: 'Invalid email format' },
+          { status: 400 }
+        )
+      }
 
-    // Additional validation for specific fields
-    if (sanitizedData.display_name && !validateDisplayName(sanitizedData.display_name)) {
-      return NextResponse.json(
-        { error: 'Invalid display name format' },
-        { status: 400 }
-      )
-    }
+      if (sanitizedData.wallet_address && !validateWalletAddress(sanitizedData.wallet_address)) {
+        return NextResponse.json(
+          { error: 'Invalid wallet address format' },
+          { status: 400 }
+        )
+      }
 
-    if (sanitizedData.email && !validateEmail(sanitizedData.email)) {
-      return NextResponse.json(
-        { error: 'Invalid email format' },
-        { status: 400 }
-      )
+      // Use upsert approach to handle race conditions elegantly
+      const profile = await UserProfileManager.upsertProfile(sanitizedData)
+      
+      return NextResponse.json({ profile }, { status: 201 })
+    } finally {
+      await cleanupSecureAuth()
     }
-
-    if (sanitizedData.wallet_address && !validateWalletAddress(sanitizedData.wallet_address)) {
-      return NextResponse.json(
-        { error: 'Invalid wallet address format' },
-        { status: 400 }
-      )
-    }
-
-    // Use upsert approach to handle race conditions elegantly
-    const profile = await UserProfileManager.upsertProfile(sanitizedData)
-    
-    return NextResponse.json({ profile }, { status: 201 })
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Profile POST error', {
@@ -212,17 +212,13 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, updateData.user_id)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, updateData.user_id, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, updateData.user_id)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
     }
 
     // Extract user_id and sanitize the rest of the update data
@@ -269,10 +265,14 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Update the user profile using the server-side admin client
-    const profile = await UserProfileManager.updateProfile(sanitizedUserId, sanitizedUpdates)
-    
-    return NextResponse.json({ profile }, { status: 200 })
+    try {
+      // Update the user profile using the server-side admin client
+      const profile = await UserProfileManager.updateProfile(sanitizedUserId, sanitizedUpdates)
+      
+      return NextResponse.json({ profile }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
+    }
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Profile PUT error', {
@@ -320,26 +320,26 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, user_id)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, user_id, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, user_id)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
     }
 
-    // Sanitize the user ID input
-    const sanitizedUserId = sanitizeInput(user_id, 100)
+    try {
+      // Sanitize the user ID input
+      const sanitizedUserId = sanitizeInput(user_id, 100)
 
-    // Delete the user profile using the server-side admin client
-    await UserProfileManager.deleteProfile(sanitizedUserId)
-    
-    return NextResponse.json({ message: 'Profile deleted successfully' }, { status: 200 })
+      // Delete the user profile using the server-side admin client
+      await UserProfileManager.deleteProfile(sanitizedUserId)
+      
+      return NextResponse.json({ message: 'Profile deleted successfully' }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
+    }
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Profile DELETE error', {

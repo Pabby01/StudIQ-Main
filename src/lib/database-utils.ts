@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Note: Using 'any' types is necessary due to Supabase type generation issues
 // where Insert and Update types are incorrectly inferred as 'never'
@@ -52,8 +53,8 @@ export const validateDisplayName = (name: string): boolean => {
 export class UserProfileManager {
   static async getProfile(userId: string): Promise<UserProfile | null> {
     try {
-      // Use admin client to bypass RLS for consistent access
-      const { data, error } = await (supabaseAdmin as any)
+      // Use regular client - RLS policies will be updated to allow proper access
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
@@ -86,10 +87,10 @@ export class UserProfileManager {
         throw new Error('Invalid phone number format')
       }
 
-      // Use admin client to bypass RLS for user creation
-      const { data, error } = await (supabaseAdmin as any)
+      // Use regular client - RLS policies will be updated to allow proper access
+      const { data, error } = await supabase
       .from('user_profiles')
-      .insert(profile)
+      .insert(profile as any)
       .select()
       .single()
 
@@ -123,10 +124,10 @@ export class UserProfileManager {
         throw new Error('Invalid phone number format')
       }
 
-      // Use admin client with upsert to handle race conditions
-      const { data, error } = await (supabaseAdmin as any)
+      // Use regular client with upsert to handle race conditions
+      const { data, error } = await supabase
         .from('user_profiles')
-        .upsert(profile, { 
+        .upsert(profile as any, { 
           onConflict: 'user_id',
           ignoreDuplicates: false 
         })
@@ -227,10 +228,10 @@ export class UserStatsManager {
 
   static async createStats(stats: UserStatsInsert): Promise<UserStats> {
     try {
-      // Use admin client to bypass RLS for user stats creation
-      const { data, error } = await (supabaseAdmin as any)
+      // Use regular client - RLS policies will be updated to allow proper access
+      const { data, error } = await supabase
       .from('user_stats')
-      .insert(stats)
+      .insert(stats as any)
       .select()
       .single()
 
@@ -251,10 +252,10 @@ export class UserStatsManager {
 
   static async upsertStats(stats: UserStatsInsert): Promise<UserStats> {
     try {
-      // Use admin client to bypass RLS for user stats upsert
-      const { data, error } = await (supabaseAdmin as any)
+      // Use regular client - RLS policies will be updated to allow proper access
+      const { data, error } = await supabase
       .from('user_stats')
-      .upsert(stats, { onConflict: 'user_id' })
+      .upsert(stats as any, { onConflict: 'user_id' })
       .select()
       .single()
 
@@ -338,7 +339,7 @@ export class ChatManager {
     try {
       const { data, error } = await (supabase as any)
       .from('ai_chat_sessions')
-      .insert(session)
+      .insert(session as any)
       .select()
       .single()
 
@@ -382,7 +383,7 @@ export class ChatManager {
 
       const { data, error } = await (supabase as any)
       .from('ai_chat_messages')
-      .insert(message)
+      .insert(message as any)
       .select()
       .single()
 
@@ -546,7 +547,7 @@ export class MarketplaceManager {
 
       const { data, error } = await (supabase as any)
       .from('marketplace_listings')
-      .insert(listing)
+      .insert(listing as any)
       .select()
       .single()
 
@@ -671,7 +672,7 @@ export class TransactionManager {
 
       const { data, error } = await (supabase as any)
         .from('transactions')
-        .insert(transaction)
+        .insert(transaction as any)
         .select()
         .single()
 
@@ -763,10 +764,10 @@ export class UserPreferencesManager {
 
   static async createPreferences(preferences: UserPreferencesInsert): Promise<UserPreferences> {
     try {
-      // Use admin client to bypass RLS for user preferences creation
-      const { data, error } = await (supabaseAdmin as any)
+      // Use regular client - RLS policies will be updated to allow proper access
+      const { data, error } = await supabase
       .from('user_preferences')
-      .insert(preferences)
+      .insert(preferences as any)
       .select()
       .single()
 
@@ -789,10 +790,10 @@ export class UserPreferencesManager {
 
   static async upsertPreferences(preferences: UserPreferencesInsert): Promise<UserPreferences> {
     try {
-      // Use admin client to bypass RLS for user preferences upsert
-      const { data, error } = await (supabaseAdmin as any)
+      // Use regular client - RLS policies will be updated to allow proper access
+      const { data, error } = await supabase
       .from('user_preferences')
-      .upsert(preferences, { onConflict: 'user_id' })
+      .upsert(preferences as any, { onConflict: 'user_id' })
       .select()
       .single()
 

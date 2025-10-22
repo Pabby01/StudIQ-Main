@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { UserStatsManager } from '@/lib/database-utils'
 import { secureLogger } from '@/lib/secure-logger'
 import { 
-  validateUserAuth, 
-  validatePrivySession, 
+  validateUserAuthWithRLS, 
+  cleanupSecureAuth,
   checkRateLimit,
   sanitizeInput
 } from '@/lib/auth-middleware'
@@ -41,32 +41,32 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, userId)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, userId, 'read')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, userId)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
-      }
-    }
-
-    // Sanitize the user ID input
-    const sanitizedUserId = sanitizeInput(userId, 100)
-
-    const stats = await UserStatsManager.getStats(sanitizedUserId)
-    
-    if (!stats) {
       return NextResponse.json(
-        { error: 'User stats not found' },
-        { status: 404 }
+        { error: authResult.error },
+        { status: authResult.statusCode }
       )
     }
-    
-    return NextResponse.json({ stats }, { status: 200 })
+
+    try {
+      // Sanitize the user ID input
+      const sanitizedUserId = sanitizeInput(userId, 100)
+
+      const stats = await UserStatsManager.getStats(sanitizedUserId)
+      
+      if (!stats) {
+        return NextResponse.json(
+          { error: 'User stats not found' },
+          { status: 404 }
+        )
+      }
+      
+      return NextResponse.json({ stats }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
+    }
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Stats GET error', {
@@ -115,35 +115,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, statsData.user_id)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, statsData.user_id, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, statsData.user_id)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
+    }
+
+    try {
+      // Sanitize input data
+      const sanitizedData = {
+        ...statsData,
+        user_id: sanitizeInput(statsData.user_id, 100)
       }
-    }
 
-    // Sanitize input data
-    const sanitizedData = {
-      ...statsData,
-      user_id: sanitizeInput(statsData.user_id, 100)
-    }
+      // Check if stats already exist
+      const existingStats = await UserStatsManager.getStats(sanitizedData.user_id)
+      if (existingStats) {
+        return NextResponse.json({ stats: existingStats }, { status: 200 })
+      }
 
-    // Check if stats already exist
-    const existingStats = await UserStatsManager.getStats(sanitizedData.user_id)
-    if (existingStats) {
-      return NextResponse.json({ stats: existingStats }, { status: 200 })
+      // Create the user stats using the server-side admin client
+      const stats = await UserStatsManager.createStats(sanitizedData)
+      
+      return NextResponse.json({ stats }, { status: 201 })
+    } finally {
+      await cleanupSecureAuth()
     }
-
-    // Create the user stats using the server-side admin client
-    const stats = await UserStatsManager.createStats(sanitizedData)
-    
-    return NextResponse.json({ stats }, { status: 201 })
   } catch (error) {
     // Handle race condition: if stats were created by another request
     if (error instanceof Error && (error.message.includes('Data already exists') || error.message.includes('duplicate key value violates unique constraint')) && statsData?.user_id) {
@@ -206,39 +206,39 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Validate user authentication and authorization
-    const authResult = await validateUserAuth(request, statsData.user_id)
+    // Validate user authentication with secure RLS context
+    const authResult = await validateUserAuthWithRLS(request, statsData.user_id, 'write')
     if (!authResult.success) {
-      // Fallback to Privy session validation
-      const privyResult = await validatePrivySession(request, statsData.user_id)
-      if (!privyResult.success) {
-        return NextResponse.json(
-          { error: authResult.error || 'Unauthorized' },
-          { status: authResult.statusCode || 401 }
-        )
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.statusCode }
+      )
+    }
+
+    try {
+      // Sanitize input data
+      const sanitizedStatsData = {
+        ...statsData,
+        user_id: sanitizeInput(statsData.user_id, 100)
       }
-    }
 
-    // Sanitize input data
-    const sanitizedStatsData = {
-      ...statsData,
-      user_id: sanitizeInput(statsData.user_id, 100)
-    }
+      // Check if this is an upsert operation
+      if (sanitizedStatsData.upsert) {
+        // Remove the upsert flag before passing to the database
+        const { upsert, ...cleanStatsData } = sanitizedStatsData
+        const stats = await UserStatsManager.upsertStats(cleanStatsData)
+        return NextResponse.json({ stats }, { status: 200 })
+      }
 
-    // Check if this is an upsert operation
-    if (sanitizedStatsData.upsert) {
-      // Remove the upsert flag before passing to the database
-      const { upsert, ...cleanStatsData } = sanitizedStatsData
-      const stats = await UserStatsManager.upsertStats(cleanStatsData)
+      // Regular update operation
+      const { user_id, ...updates } = sanitizedStatsData
+      const sanitizedUserId = sanitizeInput(user_id, 100)
+      const stats = await UserStatsManager.updateStats(sanitizedUserId, updates)
+      
       return NextResponse.json({ stats }, { status: 200 })
+    } finally {
+      await cleanupSecureAuth()
     }
-
-    // Regular update operation
-    const { user_id, ...updates } = sanitizedStatsData
-    const sanitizedUserId = sanitizeInput(user_id, 100)
-    const stats = await UserStatsManager.updateStats(sanitizedUserId, updates)
-    
-    return NextResponse.json({ stats }, { status: 200 })
   } catch (error) {
     // Log error without exposing sensitive details
     secureLogger.error('Stats PUT error', {

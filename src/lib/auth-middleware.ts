@@ -124,7 +124,17 @@ export async function validatePrivySession(
       }
     }
 
-    // Relaxed validation: if a Privy token is present, allow operations
+    // For Privy authentication, we need to validate the token format
+    // and ensure the requestedUserId matches the Privy ID format
+    if (!requestedUserId.startsWith('did:privy:')) {
+      return {
+        success: false,
+        error: 'Invalid Privy user ID format',
+        statusCode: 400
+      }
+    }
+
+    // Relaxed validation: if a Privy token is present and ID format is correct, allow operations
     // assuming the requester is acting on their own identifier.
     // This enables initial writes before a profile exists.
     return {
