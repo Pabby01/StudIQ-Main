@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { secureLogger } from '@/lib/secure-logger';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -82,7 +83,7 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
       await login();
     } catch (err) {
       setError('Authentication failed. Please try again.');
-      console.error('Auth error:', err);
+      secureLogger.error('Auth error', err);
     } finally {
       setIsLoading(false);
     }
@@ -111,7 +112,7 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
       setCurrentStep('complete');
     } catch (err) {
       setError('Failed to create profile. Please try again.');
-      console.error('Profile creation error:', err);
+      secureLogger.error('Profile creation error', err);
     } finally {
       setIsLoading(false);
     }

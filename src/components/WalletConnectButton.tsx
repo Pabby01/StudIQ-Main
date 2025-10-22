@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { secureLogger } from '@/lib/secure-logger';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -42,7 +43,7 @@ export default function WalletConnectButton() {
     try {
       await login();
     } catch (error) {
-      console.error('Login failed:', error);
+      secureLogger.error('Login failed', error);
     }
   };
 
@@ -50,7 +51,7 @@ export default function WalletConnectButton() {
     try {
       await logout();
     } catch (error) {
-      console.error('Logout failed:', error);
+      secureLogger.error('Logout failed', error);
     }
   };
 

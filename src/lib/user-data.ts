@@ -1,4 +1,6 @@
 import { UserProfileManager, UserStatsManager, UserPreferencesManager } from './database-utils'
+import { ClientUserProfileManager, ClientUserPreferencesManager } from './client-database-utils'
+import { secureLogger, secureLogUtils } from './secure-logger'
 
 export interface UserProfile {
   id: string;
@@ -128,7 +130,10 @@ export const userProfileManager = {
         dbPrefs
       )
     } catch (error) {
-      console.error('Error getting user profile:', error)
+      secureLogger.error('Error getting user profile', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       return null
     }
   },
@@ -151,7 +156,10 @@ export const userProfileManager = {
         language: profile.preferences.language
       })
     } catch (error) {
-      console.error('Error saving user profile:', error)
+      secureLogger.error('Error saving user profile', {
+        walletAddress: secureLogUtils.maskWalletAddress(profile.walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       throw error
     }
   },
@@ -159,7 +167,7 @@ export const userProfileManager = {
   // Create new user profile
   createProfile: async (walletAddress: string, displayName: string, email?: string, phone?: string): Promise<UserProfile> => {
     try {
-      const dbProfile = await UserProfileManager.createProfile({
+      const dbProfile = await ClientUserProfileManager.createProfile({
         user_id: walletAddress,
         display_name: displayName,
         email: email || null,
@@ -169,7 +177,7 @@ export const userProfileManager = {
       })
 
       // Create default preferences
-      const dbPrefs = await UserPreferencesManager.createPreferences({
+      const dbPrefs = await ClientUserPreferencesManager.createPreferences({
         user_id: walletAddress,
         theme: 'light',
         notifications_enabled: true,
@@ -190,7 +198,10 @@ export const userProfileManager = {
         dbPrefs
       )
     } catch (error) {
-      console.error('Error creating user profile:', error)
+      secureLogger.error('Error creating user profile', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       throw error
     }
   },
@@ -210,7 +221,10 @@ export const userProfileManager = {
       await userProfileManager.saveProfile(updatedProfile)
       return updatedProfile
     } catch (error) {
-      console.error('Error updating user profile:', error)
+      secureLogger.error('Error updating user profile', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       return null
     }
   },
@@ -220,7 +234,10 @@ export const userProfileManager = {
     try {
       await UserProfileManager.deleteProfile(walletAddress)
     } catch (error) {
-      console.error('Error deleting user profile:', error)
+      secureLogger.error('Error deleting user profile', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       throw error
     }
   },
@@ -236,7 +253,10 @@ export const userStatsManager = {
 
       return convertDbStatsToLegacy(dbStats)
     } catch (error) {
-      console.error('Error getting user stats:', error)
+      secureLogger.error('Error getting user stats', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       return null
     }
   },
@@ -254,7 +274,10 @@ export const userStatsManager = {
         last_activity: new Date().toISOString()
       })
     } catch (error) {
-      console.error('Error saving user stats:', error)
+      secureLogger.error('Error saving user stats', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       throw error
     }
   },
@@ -275,7 +298,10 @@ export const userStatsManager = {
 
       return convertDbStatsToLegacy(dbStats)
     } catch (error) {
-      console.error('Error initializing user stats:', error)
+      secureLogger.error('Error initializing user stats', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       throw error
     }
   },
@@ -296,7 +322,10 @@ export const userStatsManager = {
       await userStatsManager.saveStats(walletAddress, updatedStats)
       return updatedStats
     } catch (error) {
-      console.error('Error updating user stats:', error)
+      secureLogger.error('Error updating user stats', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       return null
     }
   },

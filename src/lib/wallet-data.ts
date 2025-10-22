@@ -1,4 +1,5 @@
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { secureLogger, secureLogUtils } from './secure-logger';
 import type { ParsedTransactionWithMeta } from '@solana/web3.js';
 
 // Types for wallet data
@@ -96,7 +97,7 @@ class WalletDataService {
       this.priceCache.set(cacheKey, { price, timestamp: Date.now() });
       return price;
     } catch (error) {
-      console.error('Failed to fetch SOL price:', error);
+      secureLogger.error('Failed to fetch SOL price', { error });
       return 0;
     }
   }
@@ -121,7 +122,7 @@ class WalletDataService {
 
       return prices;
     } catch (error) {
-      console.error('Failed to fetch token prices:', error);
+      secureLogger.error('Failed to fetch token prices', error);
       return prices;
     }
   }
@@ -131,7 +132,7 @@ class WalletDataService {
     try {
       // Guard against non-Solana addresses (e.g., Ethereum '0x' hex)
       if (walletAddress.startsWith('0x')) {
-        console.warn('Ethereum address used for Solana balance; returning fallback.');
+        secureLogger.warn('Ethereum address used for Solana balance; returning fallback.');
         return this.getMockWalletBalance();
       }
       const publicKey = new PublicKey(walletAddress);
@@ -195,7 +196,7 @@ class WalletDataService {
         lastUpdated: new Date(),
       };
     } catch (error) {
-      console.error('Failed to fetch wallet balance:', error);
+      secureLogger.error('Failed to fetch wallet balance', error);
       
       // Return mock data as fallback
       return this.getMockWalletBalance();
@@ -233,7 +234,7 @@ class WalletDataService {
     try {
       // Guard against non-Solana addresses (e.g., Ethereum '0x' hex)
       if (walletAddress.startsWith('0x')) {
-        console.warn('Ethereum address used for Solana transactions; returning fallback.');
+        secureLogger.warn('Ethereum address used for Solana transactions; returning fallback.');
         return this.getMockTransactions();
       }
       const publicKey = new PublicKey(walletAddress);
@@ -258,13 +259,13 @@ class WalletDataService {
             }
           }
         } catch (error) {
-          console.error('Failed to parse transaction:', error);
+          secureLogger.error('Failed to parse transaction', error);
         }
       }
 
       return transactions;
     } catch (error) {
-      console.error('Failed to fetch wallet transactions:', error);
+      secureLogger.error('Failed to fetch wallet transactions', error);
       return this.getMockTransactions();
     }
   }
@@ -292,7 +293,7 @@ class WalletDataService {
         status: 'confirmed',
       };
     } catch (error) {
-      console.error('Failed to parse transaction:', error);
+      secureLogger.error('Failed to parse transaction', error);
       return null;
     }
   }
@@ -319,7 +320,7 @@ class WalletDataService {
         performance,
       };
     } catch (error) {
-      console.error('Failed to fetch wallet portfolio:', error);
+      secureLogger.error('Failed to fetch wallet portfolio', error);
       return this.getMockPortfolio();
     }
   }

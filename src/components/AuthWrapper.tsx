@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
+import LoadingTimeout from './LoadingTimeout';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -37,24 +38,39 @@ export default function AuthWrapper({
   // Loading state while auth system initializes
   if (!isReady) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Initializing...</p>
+      <LoadingTimeout 
+        timeout={20000} 
+        message="Authentication system is taking longer than expected to initialize."
+      >
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+            <p className="text-muted-foreground">Initializing authentication...</p>
+          </div>
         </div>
-      </div>
+      </LoadingTimeout>
     );
   }
 
   // Show loading state during authentication
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Authenticating...</p>
+      <LoadingTimeout 
+        timeout={25000} 
+        message="User authentication is taking longer than expected."
+      >
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+            <p className="text-muted-foreground">Authenticating user...</p>
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md max-w-md mx-auto">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </LoadingTimeout>
     );
   }
 

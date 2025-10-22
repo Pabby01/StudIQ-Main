@@ -3,6 +3,7 @@
 // where Insert and Update types are incorrectly inferred as 'never'
 
 import { supabase, supabaseAdmin, handleSupabaseError } from './supabase'
+import { secureLogger, secureLogUtils } from './secure-logger'
 import type {
   UserProfile,
   UserProfileInsert,
@@ -51,20 +52,21 @@ export const validateDisplayName = (name: string): boolean => {
 export class UserProfileManager {
   static async getProfile(userId: string): Promise<UserProfile | null> {
     try {
-      const { data, error } = await supabase
+      // Use admin client to bypass RLS for consistent access
+      const { data, error } = await (supabaseAdmin as any)
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle()
 
       if (error) {
-        console.error('Error fetching user profile:', error)
+        secureLogger.error('Error fetching user profile', { error })
         return null
       }
 
       return data
     } catch (error) {
-      console.error('Error fetching user profile:', error)
+      secureLogger.error('Error fetching user profile', { error })
       return null
     }
   }
@@ -99,15 +101,50 @@ export class UserProfileManager {
         throw new Error('Failed to create user profile - no data returned')
       }
 
-      // Create default user stats and preferences using admin client
-      await Promise.all([
-        UserStatsManager.createStats({ user_id: profile.user_id }),
-        UserPreferencesManager.createPreferences({ user_id: profile.user_id })
-      ])
+      return data
+    } catch (error) {
+      secureLogger.error('Error creating user profile', { error })
+      throw error
+    }
+  }
+
+  static async upsertProfile(profile: UserProfileInsert): Promise<UserProfile> {
+    try {
+      // Validate required fields
+      if (!validateDisplayName(profile.display_name)) {
+        throw new Error('Display name must be between 2 and 50 characters')
+      }
+
+      if (profile.email && !validateEmail(profile.email)) {
+        throw new Error('Invalid email format')
+      }
+
+      if (profile.phone && !validatePhone(profile.phone)) {
+        throw new Error('Invalid phone number format')
+      }
+
+      // Use admin client with upsert to handle race conditions
+      const { data, error } = await (supabaseAdmin as any)
+        .from('user_profiles')
+        .upsert(profile, { 
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single()
+
+      if (error) {
+        secureLogger.error('Supabase upsert user profile error', { error })
+        handleSupabaseError(error, 'upsert user profile')
+      }
+
+      if (!data) {
+        throw new Error('Failed to upsert user profile - no data returned')
+      }
 
       return data
     } catch (error) {
-      console.error('Error creating user profile:', error)
+      secureLogger.error('Error upserting user profile', { error })
       throw error
     }
   }
@@ -144,7 +181,7 @@ export class UserProfileManager {
 
       return data
     } catch (error) {
-      console.error('Error updating user profile:', error)
+      secureLogger.error('Error updating user profile', { error })
       throw error
     }
   }
@@ -160,7 +197,7 @@ export class UserProfileManager {
         handleSupabaseError(error, 'delete user profile')
       }
     } catch (error) {
-      console.error('Error deleting user profile:', error)
+      secureLogger.error('Error deleting user profile', { error })
       throw error
     }
   }
@@ -177,13 +214,13 @@ export class UserStatsManager {
         .maybeSingle()
 
       if (error) {
-        console.error('Error fetching user stats:', error)
+        secureLogger.error('Error fetching user stats', { error })
         return null
       }
 
       return data
     } catch (error) {
-      console.error('Error fetching user stats:', error)
+      secureLogger.error('Error fetching user stats', { error })
       return null
     }
   }
@@ -207,7 +244,31 @@ export class UserStatsManager {
 
       return data
     } catch (error) {
-      console.error('Error creating user stats:', error)
+      secureLogger.error('Error creating user stats', { error })
+      throw error
+    }
+  }
+
+  static async upsertStats(stats: UserStatsInsert): Promise<UserStats> {
+    try {
+      // Use admin client to bypass RLS for user stats upsert
+      const { data, error } = await (supabaseAdmin as any)
+      .from('user_stats')
+      .upsert(stats, { onConflict: 'user_id' })
+      .select()
+      .single()
+
+      if (error) {
+        handleSupabaseError(error, 'upsert user stats')
+      }
+
+      if (!data) {
+        throw new Error('Failed to upsert user stats - no data returned')
+      }
+
+      return data
+    } catch (error) {
+      secureLogger.error('Error upserting user stats', { error })
       throw error
     }
   }
@@ -231,7 +292,7 @@ export class UserStatsManager {
 
       return data
     } catch (error) {
-      console.error('Error updating user stats:', error)
+      secureLogger.error('Error updating user stats', { error })
       throw error
     }
   }
@@ -248,7 +309,7 @@ export class UserStatsManager {
         last_activity: new Date().toISOString()
       })
     } catch (error) {
-      console.error('Error incrementing points:', error)
+      secureLogger.error('Error incrementing points', { error })
       throw error
     }
   }
@@ -265,7 +326,7 @@ export class UserStatsManager {
         last_activity: new Date().toISOString()
       })
     } catch (error) {
-      console.error('Error adding cashback:', error)
+      secureLogger.error('Error adding cashback', { error })
       throw error
     }
   }
@@ -291,7 +352,7 @@ export class ChatManager {
 
       return data
     } catch (error) {
-      console.error('Error creating chat session:', error)
+      secureLogger.error('Error creating chat session', { error })
       throw error
     }
   }
@@ -311,7 +372,7 @@ export class ChatManager {
 
       return data || []
     } catch (error) {
-      console.error('Error fetching user chat sessions:', error)
+      secureLogger.error('Error fetching user chat sessions', { error })
       throw error
     }
   }
@@ -341,7 +402,7 @@ export class ChatManager {
 
       return data
     } catch (error) {
-      console.error('Error adding chat message:', error)
+      secureLogger.error('Error adding chat message', { error })
       throw error
     }
   }
@@ -361,7 +422,7 @@ export class ChatManager {
 
       return data || []
     } catch (error) {
-      console.error('Error fetching session messages:', error)
+      secureLogger.error('Error fetching session messages', { error })
       throw error
     }
   }
@@ -379,7 +440,7 @@ export class ChatManager {
         handleSupabaseError(error, 'delete chat session')
       }
     } catch (error) {
-      console.error('Error deleting chat session:', error)
+      secureLogger.error('Error deleting chat session', { error })
       throw error
     }
   }
@@ -411,7 +472,7 @@ export class CampusStoreManager {
 
       return data || []
     } catch (error) {
-      console.error('Error fetching campus store products:', error)
+      secureLogger.error('Error fetching campus store products', { error })
       throw error
     }
   }
@@ -433,7 +494,7 @@ export class CampusStoreManager {
 
       return data
     } catch (error) {
-      console.error('Error fetching campus store product:', error)
+      secureLogger.error('Error fetching campus store product', { error })
       throw error
     }
   }
@@ -459,7 +520,7 @@ export class CampusStoreManager {
 
       return data || []
     } catch (error) {
-      console.error('Error searching campus store products:', error)
+      secureLogger.error('Error searching campus store products', { error })
       throw error
     }
   }
@@ -499,7 +560,7 @@ export class MarketplaceManager {
 
       return data
     } catch (error) {
-      console.error('Error creating marketplace listing:', error)
+      secureLogger.error('Error creating marketplace listing', { error })
       throw error
     }
   }
@@ -529,7 +590,7 @@ export class MarketplaceManager {
 
       return data || []
     } catch (error) {
-      console.error('Error fetching marketplace listings:', error)
+      secureLogger.error('Error fetching marketplace listings', { error })
       throw error
     }
   }
@@ -549,7 +610,7 @@ export class MarketplaceManager {
 
       return data || []
     } catch (error) {
-      console.error('Error fetching user marketplace listings:', error)
+      secureLogger.error('Error fetching user marketplace listings', { error })
       throw error
     }
   }
@@ -575,7 +636,7 @@ export class MarketplaceManager {
 
       return data
     } catch (error) {
-      console.error('Error marking listing as sold:', error)
+      secureLogger.error('Error marking listing as sold', { error })
       throw error
     }
   }
@@ -597,7 +658,7 @@ export class MarketplaceManager {
 
       return data || []
     } catch (error) {
-      console.error('Error searching marketplace listings:', error)
+      secureLogger.error('Error searching marketplace listings', { error })
       throw error
     }
   }
@@ -624,7 +685,7 @@ export class TransactionManager {
 
       return data
     } catch (error) {
-      console.error('Error creating transaction:', error)
+      secureLogger.error('Error creating transaction', { error })
       throw error
     }
   }
@@ -644,7 +705,7 @@ export class TransactionManager {
 
       return data || []
     } catch (error) {
-      console.error('Error fetching user transactions:', error)
+      secureLogger.error('Error fetching user transactions', { error })
       throw error
     }
   }
@@ -672,7 +733,7 @@ export class TransactionManager {
 
       return data
     } catch (error) {
-      console.error('Error updating transaction status:', error)
+      secureLogger.error('Error updating transaction status', { error })
       throw error
     }
   }
@@ -689,13 +750,13 @@ export class UserPreferencesManager {
         .maybeSingle()
 
       if (error) {
-        console.error('Error fetching user preferences:', error)
+        secureLogger.error('Error fetching user preferences', { error })
         return null
       }
 
       return data
     } catch (error) {
-      console.error('Error fetching user preferences:', error)
+      secureLogger.error('Error fetching user preferences', { error })
       return null
     }
   }
@@ -723,6 +784,32 @@ export class UserPreferencesManager {
         throw error
       }
       throw new Error('Failed to create user preferences')
+    }
+  }
+
+  static async upsertPreferences(preferences: UserPreferencesInsert): Promise<UserPreferences> {
+    try {
+      // Use admin client to bypass RLS for user preferences upsert
+      const { data, error } = await (supabaseAdmin as any)
+      .from('user_preferences')
+      .upsert(preferences, { onConflict: 'user_id' })
+      .select()
+      .single()
+
+      if (error) {
+        throw new Error(`Failed to upsert preferences: ${error.message}`)
+      }
+
+      if (!data) {
+        throw new Error('No data returned from preferences upsert')
+      }
+
+      return data
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error
+      }
+      throw new Error('Failed to upsert user preferences')
     }
   }
 

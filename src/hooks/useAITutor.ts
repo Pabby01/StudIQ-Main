@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
+import { secureLogger } from '@/lib/secure-logger';
 import { ChatManager } from '@/lib/database-utils';
 
 export interface Message {
@@ -75,7 +76,7 @@ export const useAITutor = (): AITutorState => {
       const userSessions = await ChatManager.getUserSessions(user.id);
       setSessions(userSessions);
     } catch (err) {
-      console.error('Error loading sessions:', err);
+      secureLogger.error('Failed to load sessions', err);
       setError('Failed to load chat history');
     } finally {
       setIsLoadingHistory(false);
@@ -105,7 +106,7 @@ export const useAITutor = (): AITutorState => {
       initializeWelcomeMessage();
       await refreshSessions();
     } catch (err) {
-      console.error('Error creating session:', err);
+      secureLogger.error('Failed to create session', err);
       setError('Failed to create new chat session');
     } finally {
       setIsLoading(false);
@@ -148,7 +149,7 @@ export const useAITutor = (): AITutorState => {
 
       setCurrentSession(session);
     } catch (err) {
-      console.error('Error loading session:', err);
+      secureLogger.error('Error loading session', err);
       setError('Failed to load chat session');
     } finally {
       setIsLoading(false);
@@ -173,7 +174,7 @@ export const useAITutor = (): AITutorState => {
 
       await refreshSessions();
     } catch (err) {
-      console.error('Error deleting session:', err);
+      secureLogger.error('Failed to delete session', err);
       setError('Failed to delete chat session');
     } finally {
       setIsLoading(false);
@@ -282,7 +283,7 @@ export const useAITutor = (): AITutorState => {
       });
 
     } catch (err) {
-      console.error('Error sending message:', err);
+      secureLogger.error('Failed to send message', err);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',

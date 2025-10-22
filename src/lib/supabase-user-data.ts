@@ -1,5 +1,6 @@
 import { UserProfileManager, UserStatsManager, UserPreferencesManager, formatDisplayName, generateAvatar, getGreeting } from './database-utils'
 import { Database } from './database.types'
+import { secureLogger } from './secure-logger'
 
 // Type aliases for compatibility with existing code
 export type UserProfile = {
@@ -98,7 +99,7 @@ export const userProfileManager = {
       const dbProfile = await UserProfileManager.getProfile(userId)
       return dbProfile ? convertDbProfileToApp(dbProfile) : null
     } catch (error) {
-      console.error('Error getting user profile:', error)
+      secureLogger.error('Error getting user profile', { error })
       return null
     }
   },
@@ -117,7 +118,7 @@ export const userProfileManager = {
         graduation_year: profile.graduationYear || null
       })
     } catch (error) {
-      console.error('Error saving user profile:', error)
+      secureLogger.error('Error saving user profile', { error })
       throw error
     }
   },
@@ -132,7 +133,7 @@ export const userProfileManager = {
       })
       return convertDbProfileToApp(dbProfile)
     } catch (error) {
-      console.error('Error creating user profile:', error)
+      secureLogger.error('Error creating user profile', { error })
       throw error
     }
   },
@@ -154,7 +155,7 @@ export const userProfileManager = {
       const dbProfile = await UserProfileManager.updateProfile(userId, dbUpdates)
       return convertDbProfileToApp(dbProfile)
     } catch (error) {
-      console.error('Error updating user profile:', error)
+      secureLogger.error('Error updating user profile', { error })
       throw error
     }
   },
@@ -163,7 +164,7 @@ export const userProfileManager = {
     try {
       await UserProfileManager.deleteProfile(userId)
     } catch (error) {
-      console.error('Error deleting user profile:', error)
+      secureLogger.error('Error deleting user profile', { error })
       throw error
     }
   }
@@ -176,7 +177,7 @@ export const userStatsManager = {
       const dbStats = await UserStatsManager.getStats(userId)
       return dbStats ? convertDbStatsToApp(dbStats) : null
     } catch (error) {
-      console.error('Error getting user stats:', error)
+      secureLogger.error('Error getting user stats', { error })
       return null
     }
   },
@@ -193,7 +194,7 @@ export const userStatsManager = {
         last_activity: stats.lastActivity
       })
     } catch (error) {
-      console.error('Error saving user stats:', error)
+      secureLogger.error('Error saving user stats', { error })
       throw error
     }
   },
@@ -212,7 +213,7 @@ export const userStatsManager = {
       })
       return convertDbStatsToApp(dbStats)
     } catch (error) {
-      console.error('Error initializing user stats:', error)
+      secureLogger.error('Error initializing user stats', { error })
       throw error
     }
   },
@@ -232,7 +233,7 @@ export const userStatsManager = {
       const dbStats = await UserStatsManager.updateStats(userId, dbUpdates)
       return convertDbStatsToApp(dbStats)
     } catch (error) {
-      console.error('Error updating user stats:', error)
+      secureLogger.error('Error updating user stats', { error })
       throw error
     }
   },
@@ -242,7 +243,7 @@ export const userStatsManager = {
       const dbStats = await UserStatsManager.incrementPoints(userId, points)
       return convertDbStatsToApp(dbStats)
     } catch (error) {
-      console.error('Error incrementing points:', error)
+      secureLogger.error('Error incrementing points', { error })
       throw error
     }
   },
@@ -252,7 +253,7 @@ export const userStatsManager = {
       const dbStats = await UserStatsManager.addCashback(userId, amount)
       return convertDbStatsToApp(dbStats)
     } catch (error) {
-      console.error('Error adding cashback:', error)
+      secureLogger.error('Error adding cashback', { error })
       throw error
     }
   }
@@ -265,7 +266,7 @@ export const userPreferencesManager = {
       const dbPrefs = await UserPreferencesManager.getPreferences(userId)
       return dbPrefs ? convertDbPreferencesToApp(dbPrefs) : null
     } catch (error) {
-      console.error('Error getting user preferences:', error)
+      secureLogger.error('Error getting user preferences', { error })
       return null
     }
   },
@@ -282,7 +283,7 @@ export const userPreferencesManager = {
         privacy_settings: preferences.privacySettings
       })
     } catch (error) {
-      console.error('Error saving user preferences:', error)
+      secureLogger.error('Error saving user preferences', { error })
       throw error
     }
   },
@@ -301,7 +302,7 @@ export const userPreferencesManager = {
       })
       return convertDbPreferencesToApp(dbPrefs)
     } catch (error) {
-      console.error('Error creating user preferences:', error)
+      secureLogger.error('Error creating user preferences', { error })
       throw error
     }
   },
@@ -321,7 +322,7 @@ export const userPreferencesManager = {
       const dbPrefs = await UserPreferencesManager.updatePreferences(userId, dbUpdates)
       return convertDbPreferencesToApp(dbPrefs)
     } catch (error) {
-      console.error('Error updating user preferences:', error)
+      secureLogger.error('Error updating user preferences', { error })
       throw error
     }
   }

@@ -11,6 +11,7 @@ import AuthErrorHandler, { AuthError } from '@/components/AuthErrorHandler';
 import { DEFAULT_USER_REWARDS } from '@/lib/data';
 import { userProfileManager, getGreeting, UserProfile } from '@/lib/user-data';
 import { walletDataService, WalletBalance, Transaction, formatCurrency } from '@/lib/wallet-data';
+import { secureLogger } from '@/lib/secure-logger';
 import { 
   Wallet, 
   TrendingUp, 
@@ -70,7 +71,7 @@ export default function Dashboard() {
           setWalletBalance(balance);
           setRecentTransactions(transactions);
         } catch (error) {
-          console.error('Failed to load wallet data:', error);
+          secureLogger.error('Failed to load wallet data', error);
         } finally {
           setIsLoadingWalletData(false);
         }
@@ -86,7 +87,8 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading dashboard...</p>
+          <p className="text-xs text-gray-500 mt-2">Setting up your workspace</p>
         </div>
       </div>
     );

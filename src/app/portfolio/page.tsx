@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { walletDataService, WalletBalance, Transaction, formatCurrency, formatTokenAmount } from '@/lib/wallet-data';
 import { userProfileManager, UserProfile } from '@/lib/user-data';
+import { secureLogger } from '@/lib/secure-logger';
 import AppLayout from '@/components/AppLayout';
 import { 
   Wallet, 
@@ -59,7 +60,7 @@ export default function PortfolioPage() {
         setTransactions(txHistory);
       }
     } catch (error) {
-      console.error('Failed to load wallet data:', error);
+      secureLogger.error('Failed to load wallet data', error);
     } finally {
       setIsLoading(false);
     }

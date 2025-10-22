@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { secureLogger } from '@/lib/secure-logger';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -56,7 +57,7 @@ export default function AuthErrorHandler({
     try {
       await onRetry();
     } catch (retryError) {
-      console.error('Retry failed:', retryError);
+      secureLogger.error('Retry failed', retryError);
     } finally {
       setIsRetrying(false);
     }

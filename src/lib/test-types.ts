@@ -1,4 +1,5 @@
 import { Database } from './database.types'
+import { secureLogger } from './secure-logger'
 
 // Simple test to check if types are working
 type TestUserProfile = Database['public']['Tables']['user_profiles']['Row']
@@ -9,4 +10,7 @@ const testProfile: TestUserProfileInsert = {
   display_name: 'Test User'
 }
 
-console.log('Type test passed:', testProfile)
+secureLogger.info('Type test passed', {
+  testProfile,
+  timestamp: new Date().toISOString()
+})

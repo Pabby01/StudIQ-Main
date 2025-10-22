@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { motion } from 'framer-motion';
@@ -15,33 +15,39 @@ import { Brain, Wallet, TrendingUp, Store, Shield, Users, Loader2, ArrowRight, S
 export default function Home() {
   const { authenticated, ready } = usePrivy();
   const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (ready && authenticated) {
-      router.push('/dashboard');
+    if (ready && authenticated && !isRedirecting) {
+      setIsRedirecting(true);
+      // Add a small delay to prevent flash
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 100);
     }
-  }, [ready, authenticated, router]);
+  }, [ready, authenticated, router, isRedirecting]);
 
-  // Show loading while checking authentication
+  // Show loading while checking authentication (with timeout)
   if (!ready) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Initializing app...</p>
+          <p className="text-xs text-gray-500 mt-2">This should only take a moment</p>
         </div>
       </div>
     );
   }
 
-  // Don't render landing page if user is authenticated (will redirect)
-  if (authenticated) {
+  // Show brief redirect message if authenticated
+  if (authenticated && isRedirecting) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Redirecting to dashboard...</p>
+          <p className="text-gray-600">Welcome back! Redirecting...</p>
         </div>
       </div>
     );

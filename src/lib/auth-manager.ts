@@ -1,8 +1,9 @@
 'use client'
 
 import { User as PrivyUser } from '@privy-io/react-auth'
-import { UserProfileManager, UserStatsManager, UserPreferencesManager } from './database-utils'
+import { ClientUserProfileManager, ClientUserStatsManager, ClientUserPreferencesManager, ClientUserBatchManager } from './client-database-utils'
 import { Database } from './database.types'
+import { secureLogger, secureLogUtils } from './secure-logger'
 
 type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 type UserStats = Database['public']['Tables']['user_stats']['Row']
@@ -21,70 +22,247 @@ export interface AuthUser {
   preferences?: UserPreferences
 }
 
+// In-memory lock to prevent concurrent sync operations for the same user
+const syncLocks = new Map<string, Promise<AuthUser>>()
+
 export class AuthManager {
   /**
-   * Sync Privy user with Supabase database
-   * Creates or updates user profile, stats, and preferences
+   * Sync Privy user with Supabase database with race condition protection
+   * Creates or updates user profile, stats, and preferences atomically
    */
   static async syncUserWithDatabase(
     privyUser: PrivyUser, 
     walletAddress: string
   ): Promise<AuthUser> {
+    // Check if there's already a sync operation in progress for this user
+    const existingSync = syncLocks.get(walletAddress)
+    if (existingSync) {
+      secureLogger.debug('Sync already in progress for user, waiting...', { walletAddress })
+      return existingSync
+    }
+
+    // Create a new sync operation
+    const syncOperation = this.performUserSync(privyUser, walletAddress)
+    syncLocks.set(walletAddress, syncOperation)
+
     try {
-      // Check if user profile exists
-      let profile = await UserProfileManager.getProfile(walletAddress)
-      let isNewUser = false
+      const result = await syncOperation
+      return result
+    } finally {
+      // Always clean up the lock
+      syncLocks.delete(walletAddress)
+    }
+  }
 
-      if (!profile) {
-        // Create new user profile
-        isNewUser = true
-        const displayName = this.generateDisplayName(privyUser, walletAddress)
-        
-        try {
-          profile = await UserProfileManager.createProfile({
-            user_id: walletAddress,
-            display_name: displayName,
-            email: privyUser.email?.address || null,
-            phone: privyUser.phone?.number || null,
-            wallet_address: walletAddress,
-            avatar_url: this.generateAvatar(displayName)
-          })
+  /**
+   * Internal method to perform the actual user sync
+   */
+  private static async performUserSync(
+    privyUser: PrivyUser, 
+    walletAddress: string
+  ): Promise<AuthUser> {
+    secureLogger.info('Starting user sync with database', {
+      userId: privyUser.id,
+      walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+      authMethod: this.getAuthMethod(privyUser)
+    })
 
-          console.log('User profile created successfully:', walletAddress)
-        } catch (createError) {
-          console.error('Failed to create user profile:', createError)
-          throw new Error('Failed to create user profile')
+    let existingUserData: { profile?: UserProfile; stats?: UserStats; preferences?: UserPreferences } = {}
+    
+    try {
+      const batchData = await ClientUserBatchManager.getBatchUserData(walletAddress)
+      existingUserData = batchData
+    } catch (error) {
+      secureLogger.warn('Could not check existing user data, proceeding with sync', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+
+    const isNewUser = !existingUserData.profile
+    secureLogger.info('User status determined', {
+      walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+      isNewUser,
+      hasProfile: !!existingUserData.profile,
+      hasStats: !!existingUserData.stats,
+      hasPreferences: !!existingUserData.preferences
+    })
+
+    const displayName = this.generateDisplayName(privyUser, walletAddress)
+    const avatar = this.generateAvatar(displayName)
+
+    const profileData = {
+      user_id: privyUser.id,
+      wallet_address: walletAddress,
+      display_name: displayName,
+      email: privyUser.email?.address || null,
+      phone: privyUser.phone?.number || null,
+      avatar_url: avatar,
+      auth_method: this.getAuthMethod(privyUser),
+      last_login: new Date().toISOString(),
+      is_active: true
+    }
+
+    const statsData = {
+      user_id: privyUser.id,
+      total_points: existingUserData.stats?.total_points || 0,
+      total_cashback: existingUserData.stats?.total_cashback || 0,
+      level: existingUserData.stats?.level || 1,
+      completed_lessons: existingUserData.stats?.completed_lessons || 0,
+      portfolio_value: existingUserData.stats?.portfolio_value || 0,
+      streak_days: existingUserData.stats?.streak_days || 0,
+      last_activity: new Date().toISOString()
+    }
+
+    const preferencesData = {
+      user_id: privyUser.id,
+      theme: existingUserData.preferences?.theme || 'light',
+      notifications_enabled: existingUserData.preferences?.notifications_enabled ?? true,
+      language: existingUserData.preferences?.language || 'en'
+    }
+
+    try {
+      secureLogger.info('Performing atomic batch user data sync...', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        isNewUser
+      })
+
+      const batchResult = await ClientUserBatchManager.upsertBatchUserData({
+        user_id: privyUser.id,
+        profile: profileData,
+        stats: statsData,
+        preferences: preferencesData
+      })
+
+      if (batchResult.success) {
+        secureLogger.info('Batch user sync completed successfully', {
+          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+          profileUpdated: batchResult.data.profile !== null,
+          statsUpdated: batchResult.data.stats !== null,
+          preferencesUpdated: batchResult.data.preferences !== null
+        })
+
+        return {
+          id: privyUser.id,
+          walletAddress,
+          email: privyUser.email?.address,
+          phone: privyUser.phone?.number,
+          displayName,
+          avatar,
+          isNewUser,
+          profile: batchResult.data.profile || undefined,
+          stats: batchResult.data.stats || undefined,
+          preferences: batchResult.data.preferences || undefined
         }
       } else {
-        // Update existing profile with latest Privy data
-        await UserProfileManager.updateProfile(walletAddress, {
-          email: privyUser.email?.address || profile.email,
-          phone: privyUser.phone?.number || profile.phone
+        throw new Error(`Batch sync failed: ${batchResult.errors}`)
+      }
+    } catch (batchError) {
+      secureLogger.error('Batch sync failed, attempting fallback', {
+        walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+        error: batchError instanceof Error ? batchError.message : 'Unknown error'
+      })
+
+      try {
+        const profile = await this.retryOperation(
+          () => ClientUserProfileManager.upsertProfile(profileData),
+          'profile upsert'
+        )
+
+        secureLogger.info('User profile upserted successfully (fallback)', {
+          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+          isNewUser
         })
-      }
 
-      // Get user stats and preferences
-      const [stats, preferences] = await Promise.all([
-        UserStatsManager.getStats(walletAddress),
-        UserPreferencesManager.getPreferences(walletAddress)
-      ])
+        let stats: UserStats | null = null
+        try {
+          stats = await this.retryOperation(
+            () => ClientUserStatsManager.upsertStats(statsData),
+            'stats upsert'
+          )
+        } catch (statsError) {
+          secureLogger.error('Failed to upsert user stats (fallback)', {
+            walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+            error: statsError instanceof Error ? statsError.message : 'Unknown error'
+          })
+        }
 
-      return {
-        id: walletAddress,
-        walletAddress,
-        email: privyUser.email?.address,
-        phone: privyUser.phone?.number,
-        displayName: profile.display_name,
-        avatar: profile.avatar_url || undefined,
-        isNewUser,
-        profile,
-        stats: stats || undefined,
-        preferences: preferences || undefined
+        let preferences: UserPreferences | null = null
+        try {
+          preferences = await this.retryOperation(
+            () => ClientUserPreferencesManager.upsertPreferences(preferencesData),
+            'preferences upsert'
+          )
+        } catch (preferencesError) {
+          secureLogger.error('Failed to upsert user preferences (fallback)', {
+            walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+            error: preferencesError instanceof Error ? preferencesError.message : 'Unknown error'
+          })
+        }
+
+        secureLogger.info('User sync completed successfully (fallback)', {
+          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+          hasProfile: !!profile,
+          hasStats: !!stats,
+          hasPreferences: !!preferences
+        })
+
+        return {
+          id: privyUser.id,
+          walletAddress,
+          email: privyUser.email?.address,
+          phone: privyUser.phone?.number,
+          displayName,
+          avatar,
+          isNewUser,
+          profile: profile || undefined,
+          stats: stats || undefined,
+          preferences: preferences || undefined
+        }
+      } catch (fallbackError) {
+        secureLogger.error('Critical error during fallback sync', {
+          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+          error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error'
+        })
+        throw fallbackError
       }
-    } catch (error) {
-      console.error('Error syncing user with database:', error)
-      throw new Error('Failed to sync user data')
     }
+  }
+
+  private static async retryOperation<T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    maxRetries: number = 3
+  ): Promise<T> {
+    let lastError: Error
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation()
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error')
+        
+        if (attempt === maxRetries) {
+          secureLogger.error(`Failed to ${operationName} after ${maxRetries} attempts`, {
+            error: lastError.message,
+            attempts: maxRetries
+          })
+          throw lastError
+        }
+
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
+        secureLogger.warn(`Retrying ${operationName} (attempt ${attempt}/${maxRetries}) after ${delay}ms`, {
+          error: lastError.message,
+          attempt,
+          maxRetries,
+          delay
+        })
+        
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+
+    throw lastError!
   }
 
   /**
@@ -97,18 +275,22 @@ export class AuthManager {
     try {
       const authUser = await this.syncUserWithDatabase(privyUser, walletAddress)
       
-      // Note: last_login_at field doesn't exist in user_profiles table
-      // Login tracking can be implemented through user_stats.last_activity if needed
-
-      // Log authentication event
-      console.log(`User authenticated: ${walletAddress}`, {
+      // Log authentication event (without sensitive data)
+      secureLogger.info('User authenticated successfully', {
+        timestamp: new Date().toISOString(),
         isNewUser: authUser.isNewUser,
-        authMethod: this.getAuthMethod(privyUser)
+        authMethod: this.getAuthMethod(privyUser),
+        hasProfile: !!authUser.profile,
+        hasStats: !!authUser.stats,
+        hasPreferences: !!authUser.preferences
       })
 
       return authUser
     } catch (error) {
-      console.error('Error handling user login:', error)
+      secureLogger.error('Error handling user login', {
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       throw error
     }
   }
@@ -118,12 +300,17 @@ export class AuthManager {
    */
   static async handleUserLogout(walletAddress: string): Promise<void> {
     try {
-      // Note: last_logout_at field doesn't exist in user_profiles table
-      // Logout tracking can be implemented through user_stats.last_activity if needed
+      // Clean up any pending sync operations
+      syncLocks.delete(walletAddress)
       
-      console.log(`User logged out: ${walletAddress}`)
+      secureLogger.info('User logged out successfully', {
+         timestamp: new Date().toISOString()
+       })
     } catch (error) {
-      console.error('Error handling user logout:', error)
+      secureLogger.error('Error handling user logout', {
+         timestamp: new Date().toISOString(),
+         error: error instanceof Error ? error.message : 'Unknown error'
+       })
       // Don't throw error for logout cleanup failures
     }
   }
@@ -141,7 +328,7 @@ export class AuthManager {
     }
   ): Promise<UserProfile> {
     try {
-      const updatedProfile = await UserProfileManager.updateProfile(walletAddress, {
+      const updatedProfile = await ClientUserProfileManager.updateProfile(walletAddress, {
         display_name: updates.displayName,
         email: updates.email || null,
         phone: updates.phone || null,
@@ -154,7 +341,10 @@ export class AuthManager {
 
       return updatedProfile
     } catch (error) {
-      console.error('Error updating user profile:', error)
+      secureLogger.error('Error updating user profile', {
+         timestamp: new Date().toISOString(),
+         error: error instanceof Error ? error.message : 'Unknown error'
+       })
       throw error
     }
   }
@@ -171,7 +361,8 @@ export class AuthManager {
     }
   ): Promise<UserPreferences> {
     try {
-      const updatedPrefs = await UserPreferencesManager.updatePreferences(walletAddress, {
+      const updatedPrefs = await ClientUserPreferencesManager.upsertPreferences({
+        user_id: walletAddress,
         theme: preferences.theme,
         notifications_enabled: preferences.notifications,
         language: preferences.language
@@ -183,7 +374,10 @@ export class AuthManager {
 
       return updatedPrefs
     } catch (error) {
-      console.error('Error updating user preferences:', error)
+      secureLogger.error('Error updating user preferences', {
+         timestamp: new Date().toISOString(),
+         error: error instanceof Error ? error.message : 'Unknown error'
+       })
       throw error
     }
   }
@@ -193,12 +387,20 @@ export class AuthManager {
    */
   static async deleteUserAccount(walletAddress: string): Promise<void> {
     try {
-      // Delete user profile (cascades to stats and preferences)
-      await UserProfileManager.deleteProfile(walletAddress)
+      // Clean up any pending sync operations
+      syncLocks.delete(walletAddress)
       
-      console.log(`User account deleted: ${walletAddress}`)
+      // Delete user profile (cascades to stats and preferences)
+      await ClientUserProfileManager.deleteProfile(walletAddress)
+      
+      secureLogger.info('User account deleted successfully', {
+         timestamp: new Date().toISOString()
+       })
     } catch (error) {
-      console.error('Error deleting user account:', error)
+      secureLogger.error('Error deleting user account', {
+         timestamp: new Date().toISOString(),
+         error: error instanceof Error ? error.message : 'Unknown error'
+       })
       throw error
     }
   }
@@ -259,34 +461,57 @@ export class AuthManager {
 
   /**
    * Validate user session and refresh data if needed
+   * Optimized to reduce N+1 query pattern
    */
   static async validateUserSession(walletAddress: string): Promise<AuthUser | null> {
     try {
-      const [profile, stats, preferences] = await Promise.all([
-        UserProfileManager.getProfile(walletAddress),
-        UserStatsManager.getStats(walletAddress),
-        UserPreferencesManager.getPreferences(walletAddress)
+      // Try to get all user data in parallel to reduce latency
+      const [profile, stats, preferences] = await Promise.allSettled([
+        ClientUserProfileManager.getProfile(walletAddress),
+        ClientUserStatsManager.getStats(walletAddress),
+        ClientUserPreferencesManager.getPreferences(walletAddress)
       ])
 
-      if (!profile) {
+      // Profile is required for a valid session
+      if (profile.status !== 'fulfilled' || !profile.value) {
         return null
       }
 
       return {
         id: walletAddress,
         walletAddress,
-        email: profile.email || undefined,
-        phone: profile.phone || undefined,
-        displayName: profile.display_name,
-        avatar: profile.avatar_url || undefined,
+        email: profile.value.email || undefined,
+        phone: profile.value.phone || undefined,
+        displayName: profile.value.display_name,
+        avatar: profile.value.avatar_url || undefined,
         isNewUser: false,
-        profile,
-        stats: stats || undefined,
-        preferences: preferences || undefined
+        profile: profile.value,
+        stats: stats.status === 'fulfilled' ? stats.value || undefined : undefined,
+        preferences: preferences.status === 'fulfilled' ? preferences.value || undefined : undefined
       }
     } catch (error) {
-      console.error('Error validating user session:', error)
+      secureLogger.error('Error validating user session', {
+         timestamp: new Date().toISOString(),
+         error: error instanceof Error ? error.message : 'Unknown error'
+       })
       return null
+    }
+  }
+
+  /**
+   * Clear all sync locks (useful for cleanup)
+   */
+  static clearSyncLocks(): void {
+    syncLocks.clear()
+  }
+
+  /**
+   * Get current sync lock status (for debugging)
+   */
+  static getSyncLockStatus(): { activeUsers: number; users: string[] } {
+    return {
+      activeUsers: syncLocks.size,
+      users: Array.from(syncLocks.keys()).map(() => '[REDACTED]') // Don't expose actual wallet addresses
     }
   }
 }
@@ -302,6 +527,8 @@ export function useAuthManager() {
     updateProfile: AuthManager.updateUserProfile,
     updatePreferences: AuthManager.updateUserPreferences,
     deleteAccount: AuthManager.deleteUserAccount,
-    validateSession: AuthManager.validateUserSession
+    validateSession: AuthManager.validateUserSession,
+    clearSyncLocks: AuthManager.clearSyncLocks,
+    getSyncLockStatus: AuthManager.getSyncLockStatus
   }
 }

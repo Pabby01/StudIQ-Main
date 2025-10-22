@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/components/AppLayout';
 import AuthWrapper from '@/components/AuthWrapper';
+import { secureLogger } from '@/lib/secure-logger';
 import { userProfileManager, formatDisplayName, generateAvatar, getGreeting, UserProfile } from '@/lib/user-data';
 import { 
   User, 
@@ -90,7 +91,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       setNameError('Failed to update profile. Please try again.');
-      console.error('Profile update error:', error);
+      secureLogger.error('Profile update error', error);
     } finally {
       setIsLoading(false);
     }
