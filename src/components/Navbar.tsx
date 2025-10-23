@@ -19,11 +19,11 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <nav className="border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between items-center">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
             <Image
               src="/logo.jpg"
               alt="StudIQ"
@@ -33,25 +33,45 @@ export function Navbar() {
             />
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          {/* Desktop Navigation - Enhanced for laptop screens */}
+          <div className="hidden lg:flex items-center space-x-6 xl:space-x-8">
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors"
+                  className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-gray-50 min-h-[48px]"
+                  aria-label={item.name}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.name}</span>
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  <span className="font-medium text-sm whitespace-nowrap">{item.name}</span>
                 </Link>
               );
             })}
           </div>
 
           {/* Desktop Wallet Button */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
+            <WalletConnectButton />
+          </div>
+
+          {/* Tablet Navigation (md screens) */}
+          <div className="hidden md:flex lg:hidden items-center space-x-4">
+            {navigation.slice(0, 3).map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors duration-200 px-2 py-2 rounded-lg hover:bg-gray-50 min-h-[48px]"
+                  aria-label={item.name}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-sm font-medium whitespace-nowrap">{item.name}</span>
+                </Link>
+              );
+            })}
             <WalletConnectButton />
           </div>
 
@@ -60,7 +80,12 @@ export function Navbar() {
             <WalletConnectButton />
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="min-h-[48px] min-w-[48px] touch-manipulation"
+                  aria-label="Open menu"
+                >
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -73,9 +98,9 @@ export function Navbar() {
                         key={item.name}
                         href={item.href}
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center space-x-3 text-gray-600 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-gray-50"
+                        className="flex items-center space-x-3 text-gray-600 hover:text-blue-600 transition-colors p-3 rounded-lg hover:bg-gray-50 min-h-[48px]"
                       >
-                        <Icon className="h-5 w-5" />
+                        <Icon className="h-5 w-5 flex-shrink-0" />
                         <span className="font-medium">{item.name}</span>
                       </Link>
                     );

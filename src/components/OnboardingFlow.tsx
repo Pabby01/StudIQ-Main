@@ -120,30 +120,30 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
 
   if (!isReady) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+        <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className={`max-w-md mx-auto space-y-6 ${className}`}>
+    <div className={`max-w-md mx-auto space-y-4 sm:space-y-6 ${className}`}>
       {/* Welcome Step */}
       {currentStep === 'welcome' && (
-        <Card>
+        <Card className="glass-card">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-              <User className="h-8 w-8 text-blue-600" />
+            <div className="mx-auto mb-3 sm:mb-4 w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center">
+              <User className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             </div>
-            <CardTitle className="text-2xl">Welcome to StudIQ</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">Welcome to StudIQ</CardTitle>
+            <CardDescription className="text-sm sm:text-base">
               Get started with your secure, decentralized account in just a few steps
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button 
               onClick={() => setCurrentStep('auth')} 
-              className="w-full"
+              className="w-full min-h-[48px] touch-manipulation"
               size="lg"
             >
               Get Started
@@ -154,32 +154,32 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
 
       {/* Authentication Step */}
       {currentStep === 'auth' && (
-        <Card>
+        <Card className="glass-card mt-16 sm:mt-24 md:mt-32">
           <CardHeader className="text-center">
-            <CardTitle>Sign In to StudIQ</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg sm:text-xl">Sign In to StudIQ</CardTitle>
+            <CardDescription className="text-sm sm:text-base">
               Connect your wallet or use social login to get started
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4">
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
             )}
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <Shield className="h-5 w-5 text-blue-600" />
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Shield className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
                   <div className="font-medium text-blue-900">Secure Authentication</div>
                   <div className="text-blue-700">Multiple login options with wallet integration</div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <Key className="h-5 w-5 text-green-600" />
+              <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <Key className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
                   <div className="font-medium text-green-900">Automatic Wallet Creation</div>
                   <div className="text-green-700">We&apos;ll create a secure wallet for you automatically</div>
@@ -190,23 +190,23 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
             <Button
               onClick={handleAuth}
               disabled={isLoading || authLoading}
-              className="w-full"
+              className="w-full min-h-[48px] touch-manipulation"
               size="lg"
             >
               {(isLoading || authLoading) ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Connecting...
+                  <Loader2 className="h-4 w-4 animate-spin mr-2 flex-shrink-0" />
+                  <span className="text-sm sm:text-base">Connecting...</span>
                 </>
               ) : (
                 <>
-                  <Wallet className="h-4 w-4 mr-2" />
-                  Connect & Sign In
+                  <Wallet className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="text-sm sm:text-base">Connect & Sign In</span>
                 </>
               )}
             </Button>
 
-            <div className="text-xs text-center text-muted-foreground">
+            <div className="text-xs sm:text-sm text-center text-muted-foreground">
               Supports email, phone, social login, and external wallets
             </div>
           </CardContent>
@@ -215,20 +215,20 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
 
       {/* Profile Setup Step */}
       {currentStep === 'profile' && (
-        <Card>
+        <Card className="glass-card">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-              <UserPlus className="h-8 w-8 text-purple-600" />
+            <div className="mx-auto mb-3 sm:mb-4 w-12 h-12 sm:w-16 sm:h-16 bg-purple-100 rounded-full flex items-center justify-center">
+              <UserPlus className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
             </div>
-            <CardTitle>Tell us your name</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg sm:text-xl">Tell us your name</CardTitle>
+            <CardDescription className="text-sm sm:text-base">
               We&apos;ll use this to personalize your StudIQ experience
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4">
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
             )}
@@ -252,18 +252,19 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
                   }
                 }}
                 className={nameError ? 'border-red-300 focus:border-red-500' : ''}
+                aria-describedby={nameError ? 'name-error' : undefined}
               />
               {nameError && (
-                <p className="text-sm text-red-600">{nameError}</p>
+                <p id="name-error" className="text-sm text-red-600">{nameError}</p>
               )}
               <p className="text-xs text-gray-500">
                 This will be displayed on your dashboard and profile
               </p>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <User className="h-5 w-5 text-blue-600" />
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <User className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
                   <div className="font-medium text-blue-900">Personalized Experience</div>
                   <div className="text-blue-700">Get customized greetings and recommendations</div>
@@ -274,16 +275,16 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
             <Button
               onClick={handleProfileSubmit}
               disabled={!displayName.trim() || isLoading}
-              className="w-full"
+              className="w-full min-h-[48px] touch-manipulation"
               size="lg"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Creating Profile...
+                  <Loader2 className="h-4 w-4 animate-spin mr-2 flex-shrink-0" />
+                  <span className="text-sm sm:text-base">Creating Profile...</span>
                 </>
               ) : (
-                'Continue'
+                <span className="text-sm sm:text-base">Continue</span>
               )}
             </Button>
           </CardContent>
@@ -292,32 +293,32 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
 
       {/* Completion Step */}
       {currentStep === 'complete' && (
-        <Card>
+        <Card className="glass-card">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="h-8 w-8 text-green-600" />
+            <div className="mx-auto mb-3 sm:mb-4 w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
-            <CardTitle className="text-2xl">
+            <CardTitle className="text-xl sm:text-2xl">
               {user?.displayName ? `Welcome, ${user.displayName}!` : 'Welcome to StudIQ!'}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm sm:text-base">
               Your account is set up and ready to go
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4">
             {/* User Info */}
             {user && (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium">Account</span>
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="text-xs sm:text-sm">
                     {user.email || user.phone || 'Connected'}
                   </Badge>
                 </div>
                 
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium">Wallet</span>
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="text-xs sm:text-sm">
                     {hasWallet ? 'Connected' : 'Created'}
                   </Badge>
                 </div>
@@ -332,10 +333,10 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
 
             <Button
               onClick={onComplete}
-              className="w-full"
+              className="w-full min-h-[48px] touch-manipulation"
               size="lg"
             >
-              Continue to Dashboard
+              <span className="text-sm sm:text-base">Continue to Dashboard</span>
             </Button>
           </CardContent>
         </Card>

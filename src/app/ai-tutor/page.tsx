@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,9 @@ import {
   Trash2,
   History,
   AlertCircle,
-  Loader2
+  Loader2,
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function AITutor() {
@@ -47,6 +49,20 @@ export default function AITutor() {
   const [input, setInput] = useState('');
   const [showSessionDialog, setShowSessionDialog] = useState(false);
   const [newSessionTitle, setNewSessionTitle] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -105,7 +121,16 @@ export default function AITutor() {
   }
 
   return (
-    <AppLayout>
+    <>
+      <style jsx global>{`
+        .sidebar-transition {
+          transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar-backdrop {
+          transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+      `}</style>
+      <AppLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Header */}
         <div className="mb-6 md:mb-8">
@@ -115,18 +140,28 @@ export default function AITutor() {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI Financial Tutor</h1>
             </div>
             <div className="flex items-center space-x-2">
-              {currentSession && (
-                <Badge variant="outline" className="hidden sm:flex">
-                  {currentSession.title}
-                </Badge>
-              )}
-              <Dialog open={showSessionDialog} onOpenChange={setShowSessionDialog}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="flex items-center space-x-2">
-                    <Plus className="h-4 w-4" />
-                    <span className="hidden sm:inline">New Chat</span>
+                {currentSession && (
+                  <Badge variant="outline" className="hidden sm:flex">
+                    {currentSession.title}
+                  </Badge>
+                )}
+                {isMobile && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="md:hidden min-h-[48px] min-w-[48px] touch-manipulation hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                  >
+                    {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                   </Button>
-                </DialogTrigger>
+                )}
+                <Dialog open={showSessionDialog} onOpenChange={setShowSessionDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="flex items-center space-x-2 min-h-[48px] touch-manipulation hover:bg-blue-700 focus:ring-2 focus:ring-blue-500">
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline">New Chat</span>
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Start New Chat Session</DialogTitle>
@@ -175,10 +210,147 @@ export default function AITutor() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="flex flex-col md:flex-row gap-6 relative">
+          {/* Mobile Sidebar Overlay */}
+          {isMobile && isSidebarOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} />
+          )}
+          
+          {/* Sidebar */}
+          <div className={`${isMobile ? 'fixed inset-y-0 right-0 w-80 bg-white z-50 sidebar-transition md:relative md:transform-none' : 'w-full md:w-80'} ${isMobile && !isSidebarOpen ? 'translate-x-full' : ''} md:block`}>
+            <div className="space-y-6 h-full overflow-y-auto p-4 md:p-0">
+              {/* Chat History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <History className="h-5 w-5" />
+                    <span>Chat History</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Your previous conversations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-48 overflow-y-auto">
+                  {isLoadingHistory ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                    </div>
+                  ) : sessions.length > 0 ? (
+                    sessions.map((session) => (
+                      <div
+                        key={session.id}
+                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                          currentSession?.id === session.id
+                            ? 'bg-blue-100 border border-blue-200'
+                            : 'hover:bg-gray-50'
+                        }`}
+                        onClick={() => {
+                          loadSession(session.id);
+                          if (isMobile) setIsSidebarOpen(false);
+                        }}
+                      >
+                        <div className="flex items-center space-x-2 flex-1 min-w-0">
+                          <MessageSquare className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{session.title}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(session.updated_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
+                          onClick={(e) => handleDeleteSession(session.id, e)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No chat history yet. Start a conversation!
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Example Topics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Lightbulb className="h-5 w-5" />
+                    <span>Example Topics</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Click on any topic to get started
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {EXAMPLE_TOPICS.map((topic, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-left justify-start h-auto p-3 min-h-[48px] touch-manipulation hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                      onClick={() => {
+                        handleExampleClick(topic);
+                        if (isMobile) setIsSidebarOpen(false);
+                      }}
+                    >
+                      {topic}
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Learning Categories */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <BookOpen className="h-5 w-5" />
+                    <span>Learning Categories</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">Investing & DeFi</span>
+                    <Badge variant="secondary">Beginner</Badge>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm">Risk Management</span>
+                    <Badge variant="secondary">Essential</Badge>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Brain className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm">Financial Planning</span>
+                    <Badge variant="secondary">Core</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tips */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>💡 Pro Tips</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-gray-600 space-y-2">
+                  <p>• Ask specific questions for better answers</p>
+                  <p>• Request examples with real numbers</p>
+                  <p>• Ask for step-by-step explanations</p>
+                  <p>• Your conversations are automatically saved</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
           {/* Chat Interface */}
-          <div className="lg:col-span-3">
-            <Card className="h-[600px] flex flex-col">
+          <div className="flex-1 min-w-0">
+            <Card className="h-[calc(100vh-12rem)] md:h-[calc(100vh-8rem)] flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Bot className="h-5 w-5" />
@@ -195,7 +367,7 @@ export default function AITutor() {
               </CardHeader>
               
               {/* Messages */}
-              <CardContent className="flex-1 overflow-y-auto space-y-4">
+              <CardContent className="flex-1 overflow-y-auto space-y-4 p-4">
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -216,8 +388,8 @@ export default function AITutor() {
                           <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
                         )}
                         <div className="flex-1">
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          <p className={`text-xs mt-1 ${
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                          <p className={`text-xs mt-2 ${
                             message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
                           }`}>
                             {message.timestamp.toLocaleTimeString()}
@@ -252,13 +424,14 @@ export default function AITutor() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Ask me about financial concepts..."
-                    className="flex-1"
+                    className="flex-1 min-h-[48px]"
                     disabled={isLoading}
                   />
                   <Button 
                     onClick={handleSendMessage} 
                     disabled={!input.trim() || isLoading}
-                    size="sm"
+                    size="default"
+                    className="min-h-[48px] min-w-[48px] touch-manipulation"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -271,131 +444,9 @@ export default function AITutor() {
             </Card>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Chat History */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <History className="h-5 w-5" />
-                  <span>Chat History</span>
-                </CardTitle>
-                <CardDescription>
-                  Your previous conversations
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 max-h-48 overflow-y-auto">
-                {isLoadingHistory ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="ml-2 text-sm text-gray-500">Loading...</span>
-                  </div>
-                ) : sessions.length > 0 ? (
-                  sessions.map((session) => (
-                    <div
-                      key={session.id}
-                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                        currentSession?.id === session.id
-                          ? 'bg-blue-100 border border-blue-200'
-                          : 'hover:bg-gray-50'
-                      }`}
-                      onClick={() => loadSession(session.id)}
-                    >
-                      <div className="flex items-center space-x-2 flex-1 min-w-0">
-                        <MessageSquare className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{session.title}</p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(session.updated_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
-                        onClick={(e) => handleDeleteSession(session.id, e)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    No chat history yet. Start a conversation!
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Example Topics */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Lightbulb className="h-5 w-5" />
-                  <span>Example Topics</span>
-                </CardTitle>
-                <CardDescription>
-                  Click on any topic to get started
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {EXAMPLE_TOPICS.map((topic, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-left justify-start h-auto p-3"
-                    onClick={() => handleExampleClick(topic)}
-                  >
-                    {topic}
-                  </Button>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Learning Categories */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <BookOpen className="h-5 w-5" />
-                  <span>Learning Categories</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Investing & DeFi</span>
-                  <Badge variant="secondary">Beginner</Badge>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm">Risk Management</span>
-                  <Badge variant="secondary">Essential</Badge>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Brain className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm">Financial Planning</span>
-                  <Badge variant="secondary">Core</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tips */}
-            <Card>
-              <CardHeader>
-                <CardTitle>💡 Pro Tips</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-gray-600 space-y-2">
-                <p>• Ask specific questions for better answers</p>
-                <p>• Request examples with real numbers</p>
-                <p>• Ask for step-by-step explanations</p>
-                <p>• Your conversations are automatically saved</p>
-              </CardContent>
-            </Card>
           </div>
         </div>
-      </div>
-    </AppLayout>
+      </AppLayout>
+    </>
   );
 }

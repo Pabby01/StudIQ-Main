@@ -42,9 +42,17 @@ export function validateImageFile(file: File): ImageValidationResult {
 }
 
 /**
- * Validates image dimensions using a canvas approach
+ * Validates image dimensions using a canvas approach (Browser-only)
+ * This function should only be used in client-side code
  */
 export async function validateImageDimensions(file: File): Promise<ImageValidationResult> {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined' || typeof Image === 'undefined') {
+    // In server environment, skip dimension validation for now
+    // This could be enhanced with a server-side image processing library
+    return { isValid: true };
+  }
+
   return new Promise((resolve) => {
     const img = new Image();
     
@@ -72,18 +80,24 @@ export async function validateImageDimensions(file: File): Promise<ImageValidati
 
 /**
  * Comprehensive image validation
+ * Falls back to basic validation on server-side
  */
 export async function validateImage(file: File): Promise<ImageValidationResult> {
-  // Basic file validation
+  // Basic file validation (always works)
   const fileValidation = validateImageFile(file);
   if (!fileValidation.isValid) {
     return fileValidation;
   }
 
-  // Dimension validation
-  const dimensionValidation = await validateImageDimensions(file);
-  if (!dimensionValidation.isValid) {
-    return dimensionValidation;
+  // Dimension validation (browser-only, safe for server-side)
+  try {
+    const dimensionValidation = await validateImageDimensions(file);
+    if (!dimensionValidation.isValid) {
+      return dimensionValidation;
+    }
+  } catch (error) {
+    // If dimension validation fails (e.g., server-side), log but don't fail
+    console.warn('Dimension validation skipped (server-side)', error);
   }
 
   return { isValid: true };

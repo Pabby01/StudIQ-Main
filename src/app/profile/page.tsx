@@ -79,8 +79,7 @@ export default function ProfilePage() {
             userProfile = await userProfileManager.createProfile(
               walletAddress, 
               defaultDisplayName, 
-              user.email?.address,
-              user.phone?.number
+              user.email?.address
             );
           } catch (error) {
             secureLogger.error('Error creating default profile', error);

@@ -30,6 +30,16 @@ type LoggableValue = string | number | boolean | null | undefined | Record<strin
 type LogContext = Record<string, LoggableValue> | LoggableValue | undefined
 type LogMetadata = Record<string, LoggableValue> | undefined
 
+// Log entry structure
+type LogEntry = {
+  timestamp: string;
+  level: string;
+  message: string;
+  context?: LoggableValue;
+  metadata?: LoggableValue;
+  env?: string;
+}
+
 // Sensitive data patterns to sanitize
 const SENSITIVE_PATTERNS = {
   // Wallet addresses (Solana/Ethereum format)
@@ -325,6 +335,8 @@ export const secureLogger = {
     })
   }
 }
+
+export type { LogEntry }
 
 /**
  * Legacy console replacement for gradual migration
