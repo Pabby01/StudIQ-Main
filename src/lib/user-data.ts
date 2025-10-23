@@ -9,6 +9,13 @@ export interface UserProfile {
   email?: string;
   phone?: string;
   avatar?: string;
+  avatarUrl?: string;
+  bio?: string;
+  university?: string;
+  twitter?: string;
+  github?: string;
+  linkedin?: string;
+  website?: string;
   createdAt: Date;
   updatedAt: Date;
   preferences: {
@@ -52,6 +59,11 @@ const convertDbProfileToLegacy = async (
     email?: string | null;
     phone?: string | null;
     avatar_url?: string | null;
+    bio?: string | null;
+    twitter?: string | null;
+    github?: string | null;
+    linkedin?: string | null;
+    website?: string | null;
     created_at: string;
     updated_at: string;
   },
@@ -68,6 +80,12 @@ const convertDbProfileToLegacy = async (
     email: dbProfile.email || undefined,
     phone: dbProfile.phone || undefined,
     avatar: dbProfile.avatar_url || undefined,
+    avatarUrl: dbProfile.avatar_url || undefined,
+    bio: dbProfile.bio || undefined,
+    twitter: dbProfile.twitter || undefined,
+    github: dbProfile.github || undefined,
+    linkedin: dbProfile.linkedin || undefined,
+    website: dbProfile.website || undefined,
     createdAt: new Date(dbProfile.created_at),
     updatedAt: new Date(dbProfile.updated_at),
     preferences: {
@@ -146,7 +164,8 @@ export const userProfileManager = {
         email: profile.email || null,
         phone: profile.phone || null,
         wallet_address: profile.walletAddress,
-        avatar_url: profile.avatar || null
+        avatar_url: profile.avatarUrl || profile.avatar || null,
+        bio: profile.bio || null
       })
 
       // Update preferences

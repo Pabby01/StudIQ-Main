@@ -125,11 +125,14 @@ export async function validatePrivySession(
     }
 
     // For Privy authentication, we need to validate the token format
-    // and ensure the requestedUserId matches the Privy ID format
-    if (!requestedUserId.startsWith('did:privy:')) {
+    // and ensure the requestedUserId matches either Privy ID format or wallet address format
+    const isValidPrivyId = requestedUserId.startsWith('did:privy:');
+    const isValidWalletAddress = /^0x[a-fA-F0-9]{40}$/.test(requestedUserId) || requestedUserId.length >= 26;
+    
+    if (!isValidPrivyId && !isValidWalletAddress) {
       return {
         success: false,
-        error: 'Invalid Privy user ID format',
+        error: 'Invalid user ID format. Expected Privy ID or wallet address.',
         statusCode: 400
       }
     }

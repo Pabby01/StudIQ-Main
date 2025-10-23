@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -12,6 +14,7 @@ import AppLayout from '@/components/AppLayout';
 import AuthWrapper from '@/components/AuthWrapper';
 import { secureLogger } from '@/lib/secure-logger';
 import { userProfileManager, formatDisplayName, generateAvatar, getGreeting, UserProfile } from '@/lib/user-data';
+import { validateImageFile, getUploadErrorMessage } from '@/lib/image-upload';
 import { 
   User, 
   Mail, 
@@ -26,35 +29,97 @@ import {
   Shield,
   Bell,
   Globe,
-  Loader2
+  Loader2,
+  Camera,
+  Twitter,
+  Github,
+  Linkedin,
+  Globe as GlobeIcon,
+  Lock
 } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, authenticated, ready } = usePrivy();
   const { wallets } = useWallets();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
+  const [editedBio, setEditedBio] = useState('');
+  const [editedSocials, setEditedSocials] = useState({
+    twitter: '',
+    github: '',
+    linkedin: '',
+    website: ''
+  });
+  const [editedUniversity, setEditedUniversity] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isAddingPhone, setIsAddingPhone] = useState(false);
+  const [editedPhone, setEditedPhone] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // Load user profile
   useEffect(() => {
     const loadProfile = async () => {
       if (authenticated && wallets.length > 0) {
         const walletAddress = wallets[0].address;
-        const userProfile = await userProfileManager.getProfile(walletAddress);
+        let userProfile = await userProfileManager.getProfile(walletAddress);
+        
+        // If no profile exists, create one with default values
+        if (!userProfile && user) {
+          try {
+            const defaultDisplayName = user.email?.address?.split('@')[0] || 
+                                     `User${walletAddress.slice(-4)}`;
+            userProfile = await userProfileManager.createProfile(
+              walletAddress, 
+              defaultDisplayName, 
+              user.email?.address,
+              user.phone?.number
+            );
+          } catch (error) {
+            secureLogger.error('Error creating default profile', error);
+            // Create a minimal profile object for UI purposes
+            userProfile = {
+              id: walletAddress,
+              walletAddress,
+              displayName: user.email?.address?.split('@')[0] || `User${walletAddress.slice(-4)}`,
+              email: user.email?.address,
+              phone: user.phone?.number,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              preferences: {
+                theme: 'light' as const,
+                notifications: true,
+                language: 'en'
+              }
+            };
+          }
+        }
+        
         setProfile(userProfile);
         if (userProfile) {
-          setEditedName(userProfile.displayName);
+          setEditedName(userProfile.displayName || '');
+          setEditedBio(userProfile.bio || '');
+          setEditedUniversity(userProfile.university || '');
+          setEditedPhone(userProfile.phone || '');
+          setEditedSocials({
+            twitter: userProfile.twitter || '',
+            github: userProfile.github || '',
+            linkedin: userProfile.linkedin || '',
+            website: userProfile.website || ''
+          });
         }
       }
     };
     
     loadProfile();
-  }, [authenticated, wallets]);
+  }, [authenticated, wallets, user]);
 
   const handleSaveProfile = async () => {
     setNameError(null);
@@ -80,7 +145,14 @@ export default function ProfilePage() {
     try {
       const formattedName = formatDisplayName(editedName.trim());
       const updatedProfile = await userProfileManager.updateProfile(profile.walletAddress, {
-        displayName: formattedName
+        displayName: formattedName,
+        bio: editedBio.trim(),
+        university: editedUniversity.trim(),
+        phone: editedPhone.trim(),
+        twitter: editedSocials.twitter.trim(),
+        github: editedSocials.github.trim(),
+        linkedin: editedSocials.linkedin.trim(),
+        website: editedSocials.website.trim()
       });
       
       if (updatedProfile) {
@@ -97,10 +169,146 @@ export default function ProfilePage() {
     }
   };
 
-  const handleCancelEdit = () => {
-    setIsEditing(false);
+  const handleCancel = () => {
     setEditedName(profile?.displayName || '');
+    setEditedBio(profile?.bio || '');
+    setEditedUniversity(profile?.university || '');
+    setEditedPhone(profile?.phone || '');
+    setEditedSocials({
+      twitter: profile?.twitter || '',
+      github: profile?.github || '',
+      linkedin: profile?.linkedin || '',
+      website: profile?.website || ''
+    });
+    setIsEditing(false);
+    setIsAddingPhone(false);
     setNameError(null);
+    setPhoneError(null);
+  };
+
+  const handleSavePhone = async () => {
+    setPhoneError(null);
+    
+    if (!editedPhone.trim()) {
+      setPhoneError('Please enter a phone number');
+      return;
+    }
+
+    // Basic phone validation
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    if (!phoneRegex.test(editedPhone.trim().replace(/[\s\-\(\)]/g, ''))) {
+      setPhoneError('Please enter a valid phone number');
+      return;
+    }
+
+    if (!profile) {
+      setPhoneError('No profile found');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const updatedProfile = await userProfileManager.updateProfile(profile.walletAddress, {
+        phone: editedPhone.trim()
+      });
+      
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        setIsAddingPhone(false);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (error) {
+      setPhoneError('Failed to update phone number. Please try again.');
+      secureLogger.error('Phone update error', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelPhone = () => {
+    setEditedPhone(profile?.phone || '');
+    setIsAddingPhone(false);
+    setPhoneError(null);
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !profile) return;
+
+    setAvatarError(null);
+    setUploadingAvatar(true);
+    setUploadProgress(0);
+
+    try {
+      // Validate image file
+      const validation = await validateImageFile(file);
+      if (!validation.isValid) {
+        setAvatarError(validation.error || 'Invalid image file');
+        setUploadingAvatar(false);
+        return;
+      }
+
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 100);
+
+      // Upload to your API endpoint
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('user_id', profile.id);
+
+      // Get the current Privy token from the auth manager
+      const token = localStorage.getItem('studiq_privy_token');
+      
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        headers: token ? {
+          'x-privy-token': token
+        } : {},
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      
+      // Update profile with new avatar URL
+      const updatedProfile = await userProfileManager.updateProfile(profile.walletAddress, {
+        avatarUrl: data.imageUrl
+      });
+      
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+
+    } catch (error) {
+      setAvatarError(getUploadErrorMessage(error));
+      secureLogger.error('Avatar upload error', error);
+    } finally {
+      setUploadingAvatar(false);
+      setUploadProgress(0);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAvatarClick = () => {
+    if (!uploadingAvatar) {
+      fileInputRef.current?.click();
+    }
   };
 
   // Show loading while Privy is initializing
@@ -152,11 +360,54 @@ export default function ProfilePage() {
                 <CardContent className="space-y-6">
                   {/* Profile Avatar and Name */}
                   <div className="flex items-start space-x-4">
-                    <Avatar className="h-20 w-20">
-                      <AvatarFallback className="text-lg font-semibold bg-blue-100 text-blue-600">
-                        {profile ? generateAvatar(profile.displayName) : 'U'}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="h-20 w-20 cursor-pointer hover:opacity-80 transition-opacity">
+                        {profile?.avatarUrl ? (
+                          <Image 
+                            src={profile.avatarUrl} 
+                            alt="Profile Avatar"
+                            className="h-full w-full object-cover"
+                            fill
+                            sizes="80px"
+                          />
+                        ) : (
+                          <AvatarFallback className="text-lg font-semibold bg-blue-100 text-blue-600">
+                            {profile ? generateAvatar(profile.displayName) : 'U'}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      
+                      {/* Upload Progress Overlay */}
+                      {uploadingAvatar && (
+                        <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                          <div className="text-white text-xs font-medium">
+                            {uploadProgress}%
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Upload Button Overlay */}
+                      <button
+                        onClick={handleAvatarClick}
+                        disabled={uploadingAvatar}
+                        className="absolute -bottom-1 -right-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-1.5 shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {uploadingAvatar ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Camera className="h-3 w-3" />
+                        )}
+                      </button>
+                      
+                      {/* Hidden File Input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                      />
+                    </div>
                     
                     <div className="flex-1 space-y-4">
                       {profile && (
@@ -205,7 +456,7 @@ export default function ProfilePage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={handleCancelEdit}
+                                onClick={handleCancel}
                                 disabled={isLoading}
                               >
                                 <X className="h-4 w-4 mr-1" />
@@ -232,6 +483,144 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
+                  {/* Avatar Upload Error */}
+                  {avatarError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                      <AlertCircle className="h-5 w-5" />
+                      <span className="text-sm">{avatarError}</span>
+                    </div>
+                  )}
+
+                  {/* Bio */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Bio
+                    </label>
+                    {isEditing ? (
+                      <Textarea
+                        value={editedBio}
+                        onChange={(e) => setEditedBio(e.target.value)}
+                        placeholder="Tell us a bit about yourself..."
+                        className="min-h-[80px] resize-none"
+                        maxLength={500}
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-600 min-h-[80px]">
+                        {profile?.bio || 'No bio added yet'}
+                      </p>
+                    )}
+                    {isEditing && (
+                      <p className="text-xs text-gray-500">
+                        {editedBio.length}/500 characters
+                      </p>
+                    )}
+                  </div>
+
+                  {/* University */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      University
+                    </label>
+                    {isEditing ? (
+                      <Input
+                        value={editedUniversity}
+                        onChange={(e) => setEditedUniversity(e.target.value)}
+                        placeholder="Enter your university name..."
+                        className="text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-600">
+                        {profile?.university || 'Not set'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Social Links */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-gray-700">Social Links</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Twitter */}
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Twitter className="h-4 w-4 text-blue-400" />
+                          <label className="text-sm font-medium text-gray-700">Twitter</label>
+                        </div>
+                        {isEditing ? (
+                          <Input
+                            value={editedSocials.twitter}
+                            onChange={(e) => setEditedSocials(prev => ({ ...prev, twitter: e.target.value }))}
+                            placeholder="@username"
+                            className="text-sm"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-600">
+                            {profile?.twitter || 'Not set'}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* GitHub */}
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Github className="h-4 w-4 text-gray-700" />
+                          <label className="text-sm font-medium text-gray-700">GitHub</label>
+                        </div>
+                        {isEditing ? (
+                          <Input
+                            value={editedSocials.github}
+                            onChange={(e) => setEditedSocials(prev => ({ ...prev, github: e.target.value }))}
+                            placeholder="username"
+                            className="text-sm"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-600">
+                            {profile?.github || 'Not set'}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* LinkedIn */}
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Linkedin className="h-4 w-4 text-blue-600" />
+                          <label className="text-sm font-medium text-gray-700">LinkedIn</label>
+                        </div>
+                        {isEditing ? (
+                          <Input
+                            value={editedSocials.linkedin}
+                            onChange={(e) => setEditedSocials(prev => ({ ...prev, linkedin: e.target.value }))}
+                            placeholder="linkedin.com/in/username"
+                            className="text-sm"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-600">
+                            {profile?.linkedin || 'Not set'}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Website */}
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <GlobeIcon className="h-4 w-4 text-green-600" />
+                          <label className="text-sm font-medium text-gray-700">Website</label>
+                        </div>
+                        {isEditing ? (
+                          <Input
+                            value={editedSocials.website}
+                            onChange={(e) => setEditedSocials(prev => ({ ...prev, website: e.target.value }))}
+                            placeholder="https://example.com"
+                            className="text-sm"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-600">
+                            {profile?.website || 'Not set'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <Separator />
 
                   {/* Account Information */}
@@ -239,43 +628,94 @@ export default function ProfilePage() {
                     <h3 className="text-lg font-medium">Account Information</h3>
                     
                     {/* Email */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex items-center space-x-3">
                         <Mail className="h-5 w-5 text-gray-400" />
                         <div>
-                          <div className="text-sm font-medium">Email</div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium">Email</span>
+                            <Lock className="h-3 w-3 text-gray-400" />
+                          </div>
                           <div className="text-sm text-gray-600">
                             {user?.email?.address || 'Not connected'}
                           </div>
                         </div>
                       </div>
-                      <Badge variant={user?.email?.address ? 'default' : 'secondary'}>
-                        {user?.email?.address ? 'Connected' : 'Not connected'}
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={user?.email?.address ? 'default' : 'secondary'}>
+                          {user?.email?.address ? 'Verified' : 'Not connected'}
+                        </Badge>
+                        <span className="text-xs text-gray-400">Read-only</span>
+                      </div>
                     </div>
 
                     {/* Phone */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Phone className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <div className="text-sm font-medium">Phone</div>
-                          <div className="text-sm text-gray-600">
-                            {user?.phone?.number || 'Not connected'}
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      {isAddingPhone ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-3">
+                            <Phone className="h-5 w-5 text-gray-400" />
+                            <div className="text-sm font-medium">Phone</div>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="tel"
+                              value={editedPhone}
+                              onChange={(e) => setEditedPhone(e.target.value)}
+                              placeholder="Enter your phone number"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            />
+                            {phoneError && (
+                              <p className="text-red-500 text-xs">{phoneError}</p>
+                            )}
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={handleSavePhone}
+                                disabled={isLoading}
+                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isLoading ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                onClick={handleCancelPhone}
+                                disabled={isLoading}
+                                className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <Badge variant={user?.phone?.number ? 'default' : 'secondary'}>
-                        {user?.phone?.number ? 'Connected' : 'Not connected'}
-                      </Badge>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Phone className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <div className="text-sm font-medium">Phone</div>
+                              <div className="text-sm text-gray-600">
+                                {profile?.phone || user?.phone?.number || 'Not connected'}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setIsAddingPhone(true)}
+                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                          >
+                            {profile?.phone || user?.phone?.number ? 'Edit' : 'Add'}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Wallet */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex items-center space-x-3">
                         <Wallet className="h-5 w-5 text-gray-400" />
                         <div>
-                          <div className="text-sm font-medium">Wallet</div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium">Wallet</span>
+                            <Lock className="h-3 w-3 text-gray-400" />
+                          </div>
                           <div className="text-sm text-gray-600 font-mono">
                             {wallets.length > 0 
                               ? `${wallets[0].address.slice(0, 6)}...${wallets[0].address.slice(-4)}`
@@ -284,9 +724,12 @@ export default function ProfilePage() {
                           </div>
                         </div>
                       </div>
-                      <Badge variant={wallets.length > 0 ? 'default' : 'secondary'}>
-                        {wallets.length > 0 ? 'Connected' : 'Not connected'}
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={wallets.length > 0 ? 'default' : 'secondary'}>
+                          {wallets.length > 0 ? 'Connected' : 'Not connected'}
+                        </Badge>
+                        <span className="text-xs text-gray-400">Read-only</span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

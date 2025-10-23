@@ -24,8 +24,9 @@ export interface RLSContext {
  */
 export async function setSecureRLSContext(context: RLSContext): Promise<void> {
   try {
-    // Use the helper function to set API context
+    // Use the helper function to set API context with correct parameter signature
     await (supabaseAdmin as any).rpc('set_api_context', {
+      context_type: 'api_route',
       authenticated_user_id: context.authenticatedUserId,
       bypass_rls: context.bypassRLS || false
     })
