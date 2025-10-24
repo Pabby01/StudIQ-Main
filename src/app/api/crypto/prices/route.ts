@@ -122,13 +122,13 @@ export async function GET(request: NextRequest) {
         volume24h: 15000000000,
       },
       {
-        id: 'ethereum',
-        symbol: 'ETH',
-        name: 'Ethereum',
-        price: 2650.00,
+        id: 'solana',
+        symbol: 'SOL',
+        name: 'Solana',
+        price: 165.00,
         changePercent24h: 3.1,
-        marketCap: 320000000000,
-        volume24h: 8500000000,
+        marketCap: 75000000000,
+        volume24h: 2500000000,
       },
     ];
 

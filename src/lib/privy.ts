@@ -13,14 +13,11 @@ export const privyConfig = {
       accentColor: '#3B82F6',
       logo: '/logo.jpg',
       showWalletLoginFirst: false,
-      walletChainType: 'ethereum-and-solana',
+      walletChainType: 'solana-only' as const, // Solana only
     },
     
     // Embedded wallet configuration for automatic wallet creation
     embeddedWallets: {
-      ethereum: {
-        createOnLogin: 'users-without-wallets' as const,
-      },
       solana: {
         createOnLogin: 'users-without-wallets' as const,
       },
@@ -37,27 +34,7 @@ export const privyConfig = {
       noPromptOnMfaRequired: false,
     },
     
-    // Wallet connection settings
-    supportedChains: [
-      {
-        id: 1, // Ethereum mainnet
-        name: 'Ethereum',
-        network: 'mainnet',
-        nativeCurrency: {
-          name: 'Ether',
-          symbol: 'ETH',
-          decimals: 18,
-        },
-        rpcUrls: {
-          default: {
-            http: ['https://eth-mainnet.g.alchemy.com/v2/demo'],
-          },
-          public: {
-            http: ['https://eth-mainnet.g.alchemy.com/v2/demo'],
-          },
-        },
-      },
-    ],
+    // Wallet connection settings - Solana only (configured via walletChainType)
   } satisfies PrivyClientConfig,
 };
 

@@ -266,8 +266,12 @@ export async function PUT(request: NextRequest) {
     }
 
     try {
-      // Update the user profile using the server-side admin client
-      const profile = await UserProfileManager.updateProfile(sanitizedUserId, sanitizedUpdates)
+      // Use upsert to handle both create and update operations
+      // This prevents "No data found" errors when profile doesn't exist
+      const profile = await UserProfileManager.upsertProfile({
+        user_id: sanitizedUserId,
+        ...sanitizedUpdates
+      })
       
       return NextResponse.json({ profile }, { status: 200 })
     } finally {

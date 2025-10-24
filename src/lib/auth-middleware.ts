@@ -125,14 +125,14 @@ export async function validatePrivySession(
     }
 
     // For Privy authentication, we need to validate the token format
-    // and ensure the requestedUserId matches either Privy ID format or wallet address format
+    // and ensure the requestedUserId matches either Privy ID format or Solana wallet address format
     const isValidPrivyId = requestedUserId.startsWith('did:privy:');
-    const isValidWalletAddress = /^0x[a-fA-F0-9]{40}$/.test(requestedUserId) || requestedUserId.length >= 26;
+    const isValidSolanaAddress = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(requestedUserId);
     
-    if (!isValidPrivyId && !isValidWalletAddress) {
+    if (!isValidPrivyId && !isValidSolanaAddress) {
       return {
         success: false,
-        error: 'Invalid user ID format. Expected Privy ID or wallet address.',
+        error: 'Invalid user ID format. Expected Privy ID or Solana wallet address.',
         statusCode: 400
       }
     }
@@ -243,11 +243,10 @@ export function validateDisplayName(displayName: string): boolean {
 
 export function validateWalletAddress(address: string): boolean {
   if (!address) return false
-  // Basic validation for common wallet address formats
-  // Ethereum addresses (0x followed by 40 hex characters)
-  const ethRegex = /^0x[a-fA-F0-9]{40}$/
-  // Or other common formats - adjust as needed
-  return ethRegex.test(address) || address.length >= 26 // Basic length check for other formats
+  // Solana wallet address validation
+  // Solana addresses are base58 encoded and typically 32-44 characters
+  const solanaRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
+  return solanaRegex.test(address)
 }
 
 /**

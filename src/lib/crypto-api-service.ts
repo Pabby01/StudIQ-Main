@@ -385,17 +385,12 @@ class CryptoApiService {
 
   // Validate wallet address
   validateWalletAddress(address: string, blockchain: string): boolean {
-    // Basic validation for different blockchain addresses
-    switch (blockchain.toLowerCase()) {
-      case 'solana':
-        // Solana addresses are base58 encoded and typically 32-44 characters
-        return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-      case 'ethereum':
-        // Ethereum addresses are hex and start with 0x
-        return /^0x[a-fA-F0-9]{40}$/.test(address);
-      default:
-        return false;
+    // Solana-only wallet validation
+    if (blockchain.toLowerCase() !== 'solana') {
+      return false;
     }
+    // Solana addresses are base58 encoded and typically 32-44 characters
+    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
   }
 
   // Get authentication token

@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
     const symbolToIdMap: Record<string, string> = {
       'SOL': 'solana',
       'BTC': 'bitcoin',
-      'ETH': 'ethereum',
       'USDC': 'usd-coin',
       'USDT': 'tether',
       'BNB': 'binancecoin',

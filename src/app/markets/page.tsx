@@ -67,14 +67,14 @@ export default function MarketsPage() {
       image: '/bitcoin-logo.png'
     },
     {
-      id: 'ethereum',
-      symbol: 'ETH',
-      name: 'Ethereum',
-      current_price: 2650.00,
+      id: 'solana',
+      symbol: 'SOL',
+      name: 'Solana',
+      current_price: 165.00,
       price_change_percentage_24h: 3.1,
-      market_cap: 320000000000,
-      volume_24h: 8500000000,
-      image: '/ethereum-logo.png'
+      market_cap: 75000000000,
+      volume_24h: 2500000000,
+      image: '/solana-logo.png'
     },
     {
       id: 'cardano',
