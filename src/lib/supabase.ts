@@ -31,18 +31,15 @@ let _supabaseAdmin: SupabaseClient<Database> | null = null
 export const getSupabaseAdmin = (): SupabaseClient<Database> => {
   // Check if we're on the server-side
   if (typeof window !== 'undefined') {
-    throw new Error('supabaseAdmin can only be used on the server-side')
+    throw new Error('Server-side operation not available')
   }
 
   if (!_supabaseAdmin) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseServiceKey) {
-      secureLogger.security('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is not set!')
-      secureLogger.security('This will cause RLS policy violations when creating user profiles.')
-      secureLogger.security('Please add SUPABASE_SERVICE_ROLE_KEY to your .env.local file.')
-      secureLogger.security('You can find this key in your Supabase dashboard under Settings > API')
-      throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for admin operations. Please add it to your .env.local file.')
+      secureLogger.security('Service configuration error detected')
+      throw new Error('Service configuration error. Please contact support.')
     }
 
     _supabaseAdmin = createClient<Database>(
@@ -87,7 +84,7 @@ export const handleSupabaseError = (error: PostgrestError | null, operation: str
       details: error.details,
       hint: error.hint
     })
-    throw new Error(`Row Level Security policy violation: ${error.message}. This usually means the RLS policies need to be updated to allow service role access.`)
+    throw new Error('Access denied. Please contact support.')
   }
   
   if (error?.message) {

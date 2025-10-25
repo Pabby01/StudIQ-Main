@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
+import { Metadata } from 'next';
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useWalletAddress } from '@/lib/wallet-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,9 +41,49 @@ import {
   Lock
 } from 'lucide-react';
 
+export const metadata: Metadata = {
+  title: 'Profile Settings - Student Account Management | StudIQ',
+  description: 'Manage your StudIQ student profile, wallet settings, preferences, and account security. Update personal information and customize your experience.',
+  keywords: 'student profile, account settings, wallet management, profile settings, student account, account preferences, security settings',
+  openGraph: {
+    title: 'Profile Settings - Student Account Management',
+    description: 'Manage your StudIQ student profile, wallet settings, and account preferences.',
+    url: 'https://studiq.app/profile',
+    siteName: 'StudIQ',
+    images: [
+      {
+        url: 'https://studiq.app/og-profile.png',
+        width: 1200,
+        height: 630,
+        alt: 'StudIQ Profile Settings'
+      }
+    ],
+    locale: 'en_US',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: 'Profile Settings - Student Account Management',
+    description: 'Manage your StudIQ student profile, wallet settings, and account preferences.',
+    images: ['https://studiq.app/twitter-profile.png']
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1
+    }
+  }
+};
+
 export default function ProfilePage() {
-  const { user, authenticated, ready } = usePrivy();
+  const { user, authenticated, ready, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
+  const walletAddress = useWalletAddress();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -67,17 +110,17 @@ export default function ProfilePage() {
   // Load user profile
   useEffect(() => {
     const loadProfile = async () => {
-      if (authenticated && wallets.length > 0) {
-        const walletAddress = wallets[0].address;
-        let userProfile = await userProfileManager.getProfile(walletAddress);
+      if (authenticated && walletAddress.isValid) {
+        const walletAddr = walletAddress.address!;
+        let userProfile = await userProfileManager.getProfile(walletAddr);
         
         // If no profile exists, create one with default values
         if (!userProfile && user) {
           try {
             const defaultDisplayName = user.email?.address?.split('@')[0] || 
-                                     `User${walletAddress.slice(-4)}`;
+                                     `User${walletAddr.slice(-4)}`;
             userProfile = await userProfileManager.createProfile(
-              walletAddress, 
+              walletAddr, 
               defaultDisplayName, 
               user.email?.address
             );
@@ -85,9 +128,9 @@ export default function ProfilePage() {
             secureLogger.error('Error creating default profile', error);
             // Create a minimal profile object for UI purposes
             userProfile = {
-              id: walletAddress,
-              walletAddress,
-              displayName: user.email?.address?.split('@')[0] || `User${walletAddress.slice(-4)}`,
+              id: walletAddr,
+              walletAddress: walletAddr,
+              displayName: user.email?.address?.split('@')[0] || `User${walletAddr.slice(-4)}`,
               email: user.email?.address,
               phone: user.phone?.number,
               createdAt: new Date(),
@@ -118,7 +161,7 @@ export default function ProfilePage() {
     };
     
     loadProfile();
-  }, [authenticated, wallets, user]);
+  }, [authenticated, walletAddress.isValid, walletAddress.address, user]);
 
   const handleSaveProfile = async () => {
     setNameError(null);
@@ -134,7 +177,7 @@ export default function ProfilePage() {
       return;
     }
 
-    if (!wallets.length || !profile) {
+    if (!walletAddress.isValid || !profile) {
       setNameError('No wallet or profile found');
       return;
     }
@@ -143,7 +186,7 @@ export default function ProfilePage() {
 
     try {
       const formattedName = formatDisplayName(editedName.trim());
-      const updatedProfile = await userProfileManager.updateProfile(profile.walletAddress, {
+      const updatedProfile = await userProfileManager.updateProfile(walletAddress.address!, {
         displayName: formattedName,
         bio: editedBio.trim(),
         university: editedUniversity.trim(),
@@ -234,66 +277,53 @@ export default function ProfilePage() {
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !profile) return;
-
-    setAvatarError(null);
-    setUploadingAvatar(true);
-    setUploadProgress(0);
+    if (!file || !walletAddress.isValid) return;
 
     try {
-      // Validate image file
-      const validation = await validateImageFile(file);
-      if (!validation.isValid) {
-        setAvatarError(validation.error || 'Invalid image file');
-        setUploadingAvatar(false);
-        return;
+      setUploadingAvatar(true);
+      setUploadProgress(0);
+
+      // Get Privy token for authentication
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error('Failed to get authentication token');
       }
 
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 100);
-
-      // Upload to your API endpoint
+      // Upload image
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('user_id', profile.id);
+      formData.append('walletAddress', walletAddress.address!);
 
-      // Get the current Privy token from the auth manager
-      const token = localStorage.getItem('studiq_privy_token');
-      
       const response = await fetch('/api/upload/image', {
         method: 'POST',
-        headers: token ? {
-          'x-privy-token': token
-        } : {},
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
 
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(errorData.error || 'Upload failed');
+        throw new Error('Failed to upload image');
       }
 
-      const data = await response.json();
+      const result = await response.json();
       
       // Update profile with new avatar URL
-      const updatedProfile = await userProfileManager.updateProfile(profile.walletAddress, {
-        avatarUrl: data.imageUrl
-      });
-      
-      if (updatedProfile) {
-        setProfile(updatedProfile);
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+      if (profile) {
+        const updatedProfile = await userProfileManager.updateProfile(walletAddress.address!, {
+          avatarUrl: result.url
+        });
+        
+        if (updatedProfile) {
+          setProfile(updatedProfile);
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+        }
       }
 
-    } catch (error) {
-      setAvatarError(getUploadErrorMessage(error));
-      secureLogger.error('Avatar upload error', error);
+    } catch (err) {
+      setAvatarError(getUploadErrorMessage(err));
+      secureLogger.error('Avatar upload error', err, { walletAddress: walletAddress.address });
     } finally {
       setUploadingAvatar(false);
       setUploadProgress(0);
@@ -716,16 +746,13 @@ export default function ProfilePage() {
                             <Lock className="h-3 w-3 text-gray-400" />
                           </div>
                           <div className="text-sm text-gray-600 font-mono">
-                            {wallets.length > 0 
-                              ? `${wallets[0].address.slice(0, 6)}...${wallets[0].address.slice(-4)}`
-                              : 'Not connected'
-                            }
+                            {walletAddress.displayAddress}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge variant={wallets.length > 0 ? 'default' : 'secondary'}>
-                          {wallets.length > 0 ? 'Connected' : 'Not connected'}
+                        <Badge variant={walletAddress.isValid ? 'default' : 'secondary'}>
+                          {walletAddress.isValid ? 'Connected' : 'Not connected'}
                         </Badge>
                         <span className="text-xs text-gray-400">Read-only</span>
                       </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { ClientSEO } from '@/lib/seo-utils';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,45 @@ import {
   Star,
   Loader2
 } from 'lucide-react';
+
+const seoMetadata = {
+  title: 'Markets - Cryptocurrency Prices & Market Data | StudIQ',
+  description: 'Real-time cryptocurrency prices, market data, and price charts. Track Bitcoin, Ethereum, Solana and other crypto assets with live market updates.',
+  keywords: 'cryptocurrency prices, crypto market data, Bitcoin price, Ethereum price, Solana price, live crypto prices, market cap, trading volume',
+  openGraph: {
+    title: 'Markets - Cryptocurrency Prices & Market Data',
+    description: 'Real-time cryptocurrency prices and market data for Bitcoin, Ethereum, Solana and more.',
+    url: 'https://studiq.app/markets',
+    siteName: 'StudIQ',
+    images: [
+      {
+        url: 'https://studiq.app/og-markets.png',
+        width: 1200,
+        height: 630,
+        alt: 'StudIQ Crypto Markets'
+      }
+    ],
+    locale: 'en_US',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: 'Markets - Cryptocurrency Prices & Market Data',
+    description: 'Real-time cryptocurrency prices and market data for Bitcoin, Ethereum, Solana and more.',
+    images: ['https://studiq.app/twitter-markets.png']
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1
+    }
+  }
+};
 
 interface MarketData {
   id: string;
@@ -135,8 +175,10 @@ export default function MarketsPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="container mx-auto px-4 py-6 md:py-8 space-y-6">
+    <>
+      <ClientSEO metadata={seoMetadata} />
+      <AppLayout>
+        <div className="container mx-auto px-4 py-6 md:py-8 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -285,7 +327,8 @@ export default function MarketsPage() {
           )}
         </CardContent>
       </Card>
-      </div>
-    </AppLayout>
+        </div>
+      </AppLayout>
+    </>
   );
 }

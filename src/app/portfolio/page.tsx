@@ -1,4 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
+
+import { ClientSEO } from '@/lib/seo-utils';
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
@@ -10,9 +13,9 @@ import { RefreshCw, Wallet, Loader2, Send, Download, DollarSign, TrendingUp } fr
 import { walletDataService } from '@/lib/wallet-data';
 import { userProfileManager } from '@/lib/user-data';
 import { websocketService } from '@/lib/websocket-service';
-import { cryptoApiService } from '@/lib/crypto-api-service';
 import { securityService } from '@/lib/security-service';
 import { secureLogger } from '@/lib/secure-logger';
+import { useWalletAddress } from '@/lib/wallet-utils';
 import { BalanceDisplay, useBalanceVisibility } from '@/components/portfolio/BalanceToggle';
 import { TransactionModal } from '@/components/portfolio/TransactionModal';
 import { TransactionHistory } from '@/components/portfolio/TransactionHistory';
@@ -21,8 +24,49 @@ import { MobilePortfolioNavigation } from '@/components/portfolio/MobilePortfoli
 import type { WalletPortfolio, Transaction } from '@/lib/wallet-data';
 import type { UserProfile } from '@/lib/user-data';
 
+const seoMetadata = {
+  title: 'Portfolio - Student Wallet & Asset Management | StudIQ',
+  description: 'Manage your student wallet, track cryptocurrency holdings, view transaction history, and monitor your DeFi investments. Secure portfolio management for students.',
+  keywords: 'student wallet, cryptocurrency portfolio, DeFi portfolio, student asset management, crypto wallet, transaction history, wallet management',
+  openGraph: {
+    title: 'Portfolio - Student Wallet & Asset Management',
+    description: 'Secure wallet and portfolio management for students. Track crypto holdings and DeFi investments.',
+    url: 'https://studiq.app/portfolio',
+    siteName: 'StudIQ',
+    images: [
+      {
+        url: 'https://studiq.app/og-portfolio.png',
+        width: 1200,
+        height: 630,
+        alt: 'StudIQ Portfolio Management'
+      }
+    ],
+    locale: 'en_US',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: 'Portfolio - Student Wallet & Asset Management',
+    description: 'Secure wallet and portfolio management for students. Track crypto holdings and DeFi investments.',
+    images: ['https://studiq.app/twitter-portfolio.png']
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1
+    }
+  }
+};
+
 export default function PortfolioPage() {
-  const { authenticated, user } = usePrivy();
+  const { user, authenticated, ready } = usePrivy();
+  const walletAddress = useWalletAddress();
+  const [displayWalletAddress, setDisplayWalletAddress] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<WalletPortfolio | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
@@ -49,7 +93,7 @@ export default function PortfolioPage() {
 
   // Load wallet data
   const loadWalletData = useCallback(async () => {
-    if (!authenticated || !user?.wallet?.address) return;
+    if (!authenticated || !walletAddress.isValid) return;
 
     try {
       setIsLoading(true);
@@ -65,10 +109,10 @@ export default function PortfolioPage() {
         return;
       }
 
-      const walletAddress = user.wallet.address;
+      const address = walletAddress.address!;
 
       // Load wallet balance
-      const balance = await walletDataService.getWalletBalance(walletAddress);
+      const balance = await walletDataService.getWalletBalance(address);
       setWalletBalance({
         balance,
         transactions: [],
@@ -81,7 +125,7 @@ export default function PortfolioPage() {
       });
       
       // Load user profile
-      const profile = await userProfileManager.getProfile(walletAddress);
+      const profile = await userProfileManager.getProfile(address);
       setUserProfile(profile);
       
       // Load transactions (handled by TransactionHistory component)
@@ -90,13 +134,11 @@ export default function PortfolioPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load wallet data';
       setError(errorMessage);
-      secureLogger.error('Failed to load portfolio data', { error: errorMessage });
+      secureLogger.error('Failed to load portfolio data', { error: errorMessage, walletAddress: walletAddress.address });
     } finally {
       setIsLoading(false);
     }
-  }, [authenticated, user?.wallet?.address]);
-
-
+  }, [authenticated, walletAddress.isValid, walletAddress.address]);
 
   // Handle transaction modal
   const openTransactionModal = (type: 'send' | 'receive' | 'deposit' | 'withdraw') => {
@@ -147,32 +189,43 @@ export default function PortfolioPage() {
     };
   }, [authenticated, user?.wallet?.address]);
 
+  // Update wallet address display when walletAddress changes
+  useEffect(() => {
+    if (walletAddress.isValid) {
+      setDisplayWalletAddress(walletAddress.address!);
+    }
+  }, [walletAddress.isValid, walletAddress.address]);
+
   // Initial data load
   useEffect(() => {
     loadWalletData();
-  }, [authenticated, user?.wallet?.address, loadWalletData]);
+  }, [authenticated, walletAddress.isValid, loadWalletData]);
 
   if (!authenticated) {
     return (
-      <AppLayout>
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Portfolio</h1>
-            <p className="text-muted-foreground">Please connect your wallet to view your portfolio.</p>
+      <>
+        <ClientSEO metadata={seoMetadata} />
+        <AppLayout>
+          <div className="container mx-auto px-4 py-8">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold mb-4">Portfolio</h1>
+              <p className="text-muted-foreground">Please connect your wallet to view your portfolio.</p>
+            </div>
           </div>
-        </div>
-      </AppLayout>
+        </AppLayout>
+      </>
     );
   }
 
-  const walletAddress = user?.wallet?.address;
-  const displayAddress = walletAddress 
-    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+  const displayAddress = displayWalletAddress 
+    ? `${displayWalletAddress.slice(0, 6)}...${displayWalletAddress.slice(-4)}`
     : 'No wallet';
 
   return (
-    <AppLayout>
-      <div className="container mx-auto px-4 py-8 space-y-6">
+    <>
+      <ClientSEO metadata={seoMetadata} />
+      <AppLayout>
+        <div className="container mx-auto px-4 py-8 space-y-6">
         {/* Security Warning */}
         {!isSessionValid && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -335,7 +388,7 @@ export default function PortfolioPage() {
 
         {/* Enhanced Transaction History */}
         <TransactionHistory 
-          walletAddress={walletAddress || ''}
+          walletAddress={displayWalletAddress || ''}
         />
 
         {/* Transaction Modal */}
@@ -343,7 +396,7 @@ export default function PortfolioPage() {
           isOpen={isTransactionModalOpen}
           onClose={() => setIsTransactionModalOpen(false)}
           type={transactionType}
-          walletAddress={walletAddress || ''}
+          walletAddress={displayWalletAddress || ''}
           onTransactionComplete={loadWalletData}
           availableTokens={walletBalance?.balance?.tokens.map(token => token.symbol) || ['SOL', 'USDC', 'USDT']}
         />
@@ -354,7 +407,8 @@ export default function PortfolioPage() {
           onRefresh={loadWalletData}
           isLoading={isLoading}
         />
-      </div>
-    </AppLayout>
+        </div>
+      </AppLayout>
+    </>
   );
 }

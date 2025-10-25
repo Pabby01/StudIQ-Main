@@ -1,6 +1,7 @@
 import { UserProfileManager, UserStatsManager, UserPreferencesManager } from './database-utils'
 import { ClientUserProfileManager, ClientUserPreferencesManager } from './client-database-utils'
 import { secureLogger, secureLogUtils } from './secure-logger'
+import { normalizeWalletAddress } from './wallet-utils'
 
 export interface UserProfile {
   id: string;
@@ -127,12 +128,13 @@ export const userProfileManager = {
   // Get user profile from Supabase
   getProfile: async (walletAddress: string): Promise<UserProfile | null> => {
     try {
+      const normalizedAddress = normalizeWalletAddress(walletAddress)
       // First try to find by wallet address
-      const dbProfile = await UserProfileManager.getProfile(walletAddress)
+      const dbProfile = await UserProfileManager.getProfile(normalizedAddress)
       if (!dbProfile) return null
 
       // Get user preferences
-      const dbPrefs = await UserPreferencesManager.getPreferences(walletAddress)
+      const dbPrefs = await UserPreferencesManager.getPreferences(normalizedAddress)
       
       return await convertDbProfileToLegacy(
         {
@@ -159,17 +161,18 @@ export const userProfileManager = {
   // Save user profile to Supabase
   saveProfile: async (profile: UserProfile): Promise<void> => {
     try {
-      await UserProfileManager.updateProfile(profile.walletAddress, {
+      const normalizedAddress = normalizeWalletAddress(profile.walletAddress)
+      await UserProfileManager.updateProfile(normalizedAddress, {
         display_name: profile.displayName,
         email: profile.email || null,
         phone: profile.phone || null,
-        wallet_address: profile.walletAddress,
+        wallet_address: normalizedAddress,
         avatar_url: profile.avatarUrl || profile.avatar || null,
         bio: profile.bio || null
       })
 
       // Update preferences
-      await UserPreferencesManager.updatePreferences(profile.walletAddress, {
+      await UserPreferencesManager.updatePreferences(normalizedAddress, {
         theme: profile.preferences.theme === 'dark' ? 'dark' : 'light',
         notifications_enabled: profile.preferences.notifications,
         language: profile.preferences.language
@@ -186,18 +189,19 @@ export const userProfileManager = {
   // Create new user profile
   createProfile: async (walletAddress: string, displayName: string, email?: string, phone?: string): Promise<UserProfile> => {
     try {
+      const normalizedAddress = normalizeWalletAddress(walletAddress)
       const dbProfile = await ClientUserProfileManager.createProfile({
-        user_id: walletAddress,
+        user_id: normalizedAddress,
         display_name: displayName,
         email: email || null,
         phone: phone || null,
-        wallet_address: walletAddress,
+        wallet_address: normalizedAddress,
         avatar_url: generateAvatar(displayName)
       })
 
       // Create default preferences
       const dbPrefs = await ClientUserPreferencesManager.createPreferences({
-        user_id: walletAddress,
+        user_id: normalizedAddress,
         theme: 'light',
         notifications_enabled: true,
         language: 'en'

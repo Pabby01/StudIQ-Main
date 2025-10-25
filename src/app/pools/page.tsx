@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ClientSEO } from '@/lib/seo-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,45 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
+
+const seoMetadata = {
+  title: 'Savings Pools - Student DeFi Investment Opportunities | StudIQ',
+  description: 'Discover curated DeFi savings pools designed for students. AI-explained investment opportunities with risk assessments, APY rates, and educational guidance.',
+  keywords: 'student DeFi, savings pools, investment opportunities, APY rates, DeFi for students, cryptocurrency savings, AI investment guidance',
+  openGraph: {
+    title: 'Savings Pools - Student DeFi Investment Opportunities',
+    description: 'AI-curated DeFi savings pools with educational explanations and risk assessments for students.',
+    url: 'https://studiq.app/pools',
+    siteName: 'StudIQ',
+    images: [
+      {
+        url: 'https://studiq.app/og-pools.png',
+        width: 1200,
+        height: 630,
+        alt: 'StudIQ Savings Pools'
+      }
+    ],
+    locale: 'en_US',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: 'Savings Pools - Student DeFi Investment Opportunities',
+    description: 'AI-curated DeFi savings pools with educational explanations and risk assessments for students.',
+    images: ['https://studiq.app/twitter-pools.png']
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1
+    }
+  }
+};
 
 export default function SavingsPools() {
   const [depositAmount, setDepositAmount] = useState('');
@@ -41,7 +81,9 @@ export default function SavingsPools() {
   };
 
   return (
-    <AppLayout>
+    <>
+      <ClientSEO metadata={seoMetadata} />
+      <AppLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Header */}
         <div className="mb-6 md:mb-8">
@@ -226,5 +268,6 @@ export default function SavingsPools() {
         </div>
       </div>
     </AppLayout>
+    </>
   );
 }

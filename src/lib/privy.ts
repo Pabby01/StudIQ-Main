@@ -1,8 +1,14 @@
 import { PrivyProvider } from '@privy-io/react-auth';
 import type { PrivyClientConfig } from '@privy-io/react-auth';
 
+// Validate required environment variables
+const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+if (!appId) {
+  throw new Error('NEXT_PUBLIC_PRIVY_APP_ID is required for Privy authentication. Please set this environment variable.');
+}
+
 export const privyConfig = {
-  appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'demo-app-id',
+  appId: appId,
   config: {
     // Enable all authentication methods
     loginMethods: ['wallet', 'email', 'sms', 'google', 'apple'],

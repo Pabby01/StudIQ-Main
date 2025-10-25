@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Head from 'next/head';
+import { ClientSEO } from '@/lib/seo-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +31,34 @@ import {
   Menu,
   X
 } from 'lucide-react';
+
+const seoMetadata = {
+  title: 'AI Financial Tutor - Learn Finance with AI | StudIQ',
+  description: 'Master financial concepts with our AI-powered tutor. Get personalized explanations, real-world examples, and step-by-step guidance on DeFi, investing, budgeting, and more.',
+  keywords: 'AI financial tutor, financial education AI, DeFi learning, cryptocurrency tutor, investment education, financial literacy AI, student finance tutor, blockchain education, budgeting AI, financial planning AI',
+  openGraph: {
+    title: 'AI Financial Tutor - Personalized Finance Education',
+    description: 'Learn finance with AI-powered tutoring. Get personalized explanations, real-world examples, and step-by-step guidance on financial concepts.',
+    url: 'https://studiq.app/ai-tutor',
+    siteName: 'StudIQ',
+    images: [
+      {
+        url: 'https://studiq.app/ai-tutor-og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'StudIQ AI Financial Tutor Interface',
+      }
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: 'AI Financial Tutor - Learn with AI',
+    description: 'Get personalized financial education with our AI tutor. Learn DeFi, investing, and money management.',
+    images: ['https://studiq.app/ai-tutor-twitter-image.png'],
+  },
+};
 
 export default function AITutor() {
   const { isAuthenticated, user } = useAuth();
@@ -122,6 +152,7 @@ export default function AITutor() {
 
   return (
     <>
+      <ClientSEO metadata={seoMetadata} />
       <style jsx global>{`
         .sidebar-transition {
           transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);

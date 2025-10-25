@@ -47,17 +47,31 @@ export interface WalletPortfolio {
   };
 }
 
-// Solana connection configuration
-const SOLANA_RPC_ENDPOINTS = [
-  'https://api.mainnet-beta.solana.com',
-  'https://solana-api.projectserum.com',
-  'https://rpc.ankr.com/solana',
-];
+// Solana connection configuration - Use environment variables for RPC endpoints
+const getSolanaRpcEndpoints = (): string[] => {
+  // Primary RPC endpoint from environment
+  const primaryRpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+  if (!primaryRpc) {
+    throw new Error('NEXT_PUBLIC_SOLANA_RPC_URL is required. Please set this environment variable with your Solana RPC endpoint.');
+  }
+  
+  // Fallback endpoints from environment (optional)
+  const fallbackRpcs = process.env.NEXT_PUBLIC_SOLANA_RPC_FALLBACKS 
+    ? process.env.NEXT_PUBLIC_SOLANA_RPC_FALLBACKS.split(',')
+    : [];
+  
+  return [primaryRpc, ...fallbackRpcs];
+};
 
-// Token price API endpoints
-const PRICE_API_ENDPOINTS = {
-  coingecko: 'https://api.coingecko.com/api/v3',
-  jupiter: 'https://price.jup.ag/v4/price',
+// Token price API endpoints - Use environment variables
+const getPriceApiEndpoints = () => {
+  const coingeckoApi = process.env.NEXT_PUBLIC_COINGECKO_API_URL || 'https://api.coingecko.com/api/v3';
+  const jupiterApi = process.env.NEXT_PUBLIC_JUPITER_API_URL || 'https://price.jup.ag/v4/price';
+  
+  return {
+    coingecko: coingeckoApi,
+    jupiter: jupiterApi,
+  };
 };
 
 // Common token addresses on Solana
@@ -73,10 +87,16 @@ class WalletDataService {
   private connection: Connection;
   private priceCache: Map<string, { price: number; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 60000; // 1 minute cache
+  private readonly rpcEndpoints: string[];
+  private readonly priceEndpoints: { coingecko: string; jupiter: string };
 
   constructor() {
+    // Initialize RPC endpoints from environment
+    this.rpcEndpoints = getSolanaRpcEndpoints();
+    this.priceEndpoints = getPriceApiEndpoints();
+    
     // Initialize with the first RPC endpoint, fallback to others if needed
-    this.connection = new Connection(SOLANA_RPC_ENDPOINTS[0], 'confirmed');
+    this.connection = new Connection(this.rpcEndpoints[0], 'confirmed');
   }
 
   // Get SOL price from CoinGecko
@@ -90,7 +110,7 @@ class WalletDataService {
 
     try {
       const response = await fetch(
-        `${PRICE_API_ENDPOINTS.coingecko}/simple/price?ids=solana&vs_currencies=usd`
+        `${this.priceEndpoints.coingecko}/simple/price?ids=solana&vs_currencies=usd`
       );
       const data = await response.json();
       const price = data.solana?.usd || 0;

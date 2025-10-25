@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { motion } from 'framer-motion';
+import Head from 'next/head';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LandingNavbar } from '@/components/LandingNavbar';
@@ -53,10 +54,32 @@ export default function Home() {
     );
   }
   return (
-    <div className="min-h-screen animated-gradient">
-      <LandingNavbar />
-      
-      {/* Hero Section */}
+    <>
+      <Head>
+        <title>StudIQ - AI-Powered Financial Literacy for Students | Web3 Learning Platform</title>
+        <meta name="description" content="Empower your financial future with AI-driven learning, DeFi opportunities, and secure wallet management. Join thousands of students mastering financial literacy through interactive Web3 technology." />
+        <meta name="keywords" content="student financial literacy, AI financial tutor, Web3 education, DeFi learning, student wallet, financial education app, cryptocurrency education, blockchain learning, savings pools, campus rewards" />
+        <meta name="robots" content="index, follow" />
+        <meta name="googlebot" content="index, follow, max-video-preview:-1, max-image-preview:large, max-snippet:-1" />
+        <meta property="og:title" content="StudIQ - AI-Powered Financial Literacy for Students" />
+        <meta property="og:description" content="Learn finance with AI, earn rewards, and manage your crypto wallet. The ultimate Web3 learning platform for students." />
+        <meta property="og:url" content="https://studiq.app" />
+        <meta property="og:site_name" content="StudIQ" />
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:image" content="https://studiq.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="StudIQ AI Financial Literacy Platform" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="StudIQ - AI Financial Tutor for Students" />
+        <meta name="twitter:description" content="Master financial literacy with AI-powered learning and Web3 technology." />
+        <meta name="twitter:image" content="https://studiq.app/twitter-image.png" />
+      </Head>
+      <div className="min-h-screen animated-gradient">
+        <LandingNavbar />
+        
+        {/* Hero Section */}
       <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 -z-10 hero-gradient" aria-hidden="true" />
         
@@ -603,6 +626,7 @@ export default function Home() {
       </section>
 
       <Footer />
-    </div>
+      </div>
+    </>
   );
 }

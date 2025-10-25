@@ -226,5 +226,4 @@ class WebSocketService {
 // Create singleton instance
 export const websocketService = new WebSocketService();
 
-// Export types for use in components
-// Note: Types are already exported as interfaces above, no need for redundant export
+export default WebSocketService;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ClientSEO } from '@/lib/seo-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +20,45 @@ import {
   ShoppingBag,
   Filter
 } from 'lucide-react';
+
+const seoMetadata = {
+  title: 'Campus Store - Student Rewards & Cashback Shopping | StudIQ',
+  description: 'Earn cashback and rewards at your favorite campus stores. Shop with exclusive student discounts, earn reward points, and save money on campus essentials.',
+  keywords: 'campus store, student cashback, student rewards, campus shopping, student discounts, campus deals, student savings',
+  openGraph: {
+    title: 'Campus Store - Student Rewards & Cashback Shopping',
+    description: 'Earn cashback and rewards at campus stores with exclusive student discounts and deals.',
+    url: 'https://studiq.app/stores',
+    siteName: 'StudIQ',
+    images: [
+      {
+        url: 'https://studiq.app/og-stores.png',
+        width: 1200,
+        height: 630,
+        alt: 'StudIQ Campus Store'
+      }
+    ],
+    locale: 'en_US',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: 'Campus Store - Student Rewards & Cashback Shopping',
+    description: 'Earn cashback and rewards at campus stores with exclusive student discounts and deals.',
+    images: ['https://studiq.app/twitter-stores.png']
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1
+    }
+  }
+};
 
 export default function CampusStores() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +80,9 @@ export default function CampusStores() {
   };
 
   return (
-    <AppLayout>
+    <>
+      <ClientSEO metadata={seoMetadata} />
+      <AppLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Header */}
         <div className="mb-6 md:mb-8">
@@ -276,5 +318,6 @@ export default function CampusStores() {
         </div>
       </div>
     </AppLayout>
+    </>
   );
 }

@@ -29,18 +29,32 @@ class SecurityService {
   private readonly SESSION_KEY = 'studiQ_session';
   private readonly LOCKOUT_KEY = 'studiQ_lockout';
   private readonly ATTEMPTS_KEY = 'studiQ_attempts';
-  private readonly ENCRYPTION_KEY = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || 'default-key-change-in-production';
+  private readonly ENCRYPTION_KEY: string;
   
-  private config: SecurityConfig = {
-    sessionTimeout: 30, // 30 minutes
-    maxLoginAttempts: 5,
-    lockoutDuration: 15, // 15 minutes
-    require2FA: true,
-    encryptionKey: this.ENCRYPTION_KEY,
-  };
+  private config: SecurityConfig;
 
   // Initialize security service
   constructor() {
+    // Validate encryption key is provided
+    const encryptionKey = process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      throw new Error('NEXT_PUBLIC_ENCRYPTION_KEY is required for secure operations. Please set this environment variable.');
+    }
+    if (encryptionKey.length < 32) {
+      throw new Error('ENCRYPTION_KEY must be at least 32 characters long for security.');
+    }
+    
+    this.ENCRYPTION_KEY = encryptionKey;
+    
+    // Initialize config after ENCRYPTION_KEY is set
+    this.config = {
+      sessionTimeout: 30, // 30 minutes
+      maxLoginAttempts: 5,
+      lockoutDuration: 15, // 15 minutes
+      require2FA: true,
+      encryptionKey: this.ENCRYPTION_KEY,
+    };
+    
     this.startSessionMonitoring();
     this.setupSecurityHeaders();
   }

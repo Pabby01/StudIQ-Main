@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
+import Head from 'next/head';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -153,8 +154,29 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      {/* Welcome Header */}
+    <>
+      <Head>
+        <title>Dashboard - StudIQ Student Financial Management Platform</title>
+        <meta name="description" content="View your financial portfolio, track savings progress, monitor rewards, and access personalized financial insights. Your complete student financial dashboard." />
+        <meta name="keywords" content="student financial dashboard, crypto portfolio tracker, savings progress, financial analytics, student wallet dashboard, DeFi portfolio, reward tracking, financial insights" />
+        <meta name="robots" content="index, follow" />
+        <meta property="og:title" content="StudIQ Dashboard - Your Financial Command Center" />
+        <meta property="og:description" content="Track your financial progress, portfolio performance, and learning achievements in one comprehensive dashboard." />
+        <meta property="og:url" content="https://studiq.app/dashboard" />
+        <meta property="og:site_name" content="StudIQ" />
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:image" content="https://studiq.app/dashboard-og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="StudIQ Student Financial Dashboard" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="StudIQ Dashboard - Student Financial Overview" />
+        <meta name="twitter:description" content="Monitor your financial journey with real-time portfolio tracking and personalized insights." />
+        <meta name="twitter:image" content="https://studiq.app/dashboard-twitter-image.png" />
+      </Head>
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        {/* Welcome Header */}
       <div className="text-center mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
           {userProfile ? `Welcome back, ${userProfile.display_name}!` : 'Welcome back!'}
@@ -341,6 +363,7 @@ function DashboardContent() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
