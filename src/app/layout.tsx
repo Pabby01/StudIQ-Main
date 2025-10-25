@@ -117,8 +117,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="StudIQ" />
         
-        {/* PWA Manifest */}
-        <link rel="manifest" href="/manifest.json" />
+        {/* PWA Manifest - Temporarily disabled due to 401 error */}
+        {/* <link rel="manifest" href="/manifest.json" /> */}
         
         {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

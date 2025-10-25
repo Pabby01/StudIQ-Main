@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Application initialization component that validates environment on startup
  * This component runs on the client side and ensures proper configuration
@@ -19,24 +20,31 @@ export default function AppInitializer({ children }: AppInitializerProps) {
   const [errors, setErrors] = useState<string[]>([]);
 
   useEffect(() => {
-    // Validate environment on client-side mount
-    const validation = validateEnvironment();
+    // Only validate critical client-side environment variables
+    const clientSideVars = [
+      'NEXT_PUBLIC_PRIVY_APP_ID',
+      'NEXT_PUBLIC_SUPABASE_URL', 
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'NEXT_PUBLIC_ENCRYPTION_KEY',
+      'NEXT_PUBLIC_SOLANA_RPC_URL'
+    ];
     
-    if (!validation.isValid) {
+    const missingVars = clientSideVars.filter(varName => !process.env[varName]);
+    const validationErrors = missingVars.map(varName => 
+      `Required environment variable ${varName} is not set`
+    );
+    
+    if (missingVars.length > 0) {
       secureLogger.error('Client-side environment validation failed', {
-        missing: validation.missing,
-        errors: validation.errors,
+        missing: missingVars,
+        errors: validationErrors,
       });
       
       setIsValid(false);
-      setErrors(validation.errors);
+      setErrors(validationErrors);
     } else {
       secureLogger.info('Client-side environment validation passed');
       setIsValid(true);
-      
-      if (validation.warnings.length > 0) {
-        secureLogger.warn('Environment warnings', { warnings: validation.warnings });
-      }
     }
   }, []);
 
