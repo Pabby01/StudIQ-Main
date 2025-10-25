@@ -1,5 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+'use client';
+
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +28,7 @@ import {
   XCircle,
   AlertCircle
 } from 'lucide-react';
-import { cryptoApiService, TransactionResponse } from '@/lib/crypto-api-service';
+import { clientCryptoApiService, TransactionResponse } from '@/lib/client-crypto-api-service';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -68,7 +70,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
       setIsLoading(true);
       setError(null);
       
-      const history = await cryptoApiService.getTransactionHistory(walletAddress, 100);
+      const history = await clientCryptoApiService.getTransactionHistory(walletAddress, 100);
       setTransactions(history);
     } catch (err) {
       setError('Failed to load transaction history');

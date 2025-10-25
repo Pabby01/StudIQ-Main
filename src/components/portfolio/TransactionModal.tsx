@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+'use client';
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,9 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TransactionResponse } from '@/lib/crypto-api-service';
+import { TransactionResponse } from '@/lib/client-crypto-api-service';
 import { Loader2, Send, Download, Upload, AlertCircle } from 'lucide-react';
-import { cryptoApiService } from '@/lib/crypto-api-service';
+import { clientCryptoApiService } from '@/lib/client-crypto-api-service';
 import { secureLogger } from '@/lib/secure-logger';
 
 interface TransactionModalProps {
@@ -49,7 +51,7 @@ export function TransactionModal({
         return;
       }
 
-      if (!cryptoApiService.validateWalletAddress(formData.toAddress, 'solana')) {
+      if (!clientCryptoApiService.validateWalletAddress(formData.toAddress, 'solana')) {
         setError('Invalid wallet address format');
         return;
       }
@@ -73,7 +75,7 @@ export function TransactionModal({
 
       switch (type) {
         case 'send':
-          result = await cryptoApiService.sendTransaction({
+          result = await clientCryptoApiService.sendTransaction({
             toAddress: formData.toAddress,
             amount,
             token: formData.token,
@@ -83,7 +85,7 @@ export function TransactionModal({
           break;
 
         case 'deposit':
-          result = await cryptoApiService.processDeposit({
+          result = await clientCryptoApiService.processDeposit({
             token: formData.token,
             amount,
             walletAddress,
@@ -91,7 +93,7 @@ export function TransactionModal({
           break;
 
         case 'withdraw':
-          result = await cryptoApiService.processWithdrawal({
+          result = await clientCryptoApiService.processWithdrawal({
             toAddress: formData.toAddress,
             amount,
             token: formData.token,

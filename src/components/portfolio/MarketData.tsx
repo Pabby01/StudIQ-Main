@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +14,7 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { cryptoApiService, MarketData as MarketDataType } from '@/lib/crypto-api-service';
+import { clientCryptoApiService, MarketData as MarketDataType } from '@/lib/client-crypto-api-service';
 import type { MarketData as WebSocketMarketData } from '@/lib/websocket-service';
 import { websocketService } from '@/lib/websocket-service';
 import { cn } from '@/lib/utils';
@@ -44,7 +46,7 @@ export function MarketData({ symbol, className, showChart = true, compact = fals
       setIsLoading(true);
       setError(null);
       
-      const data = await cryptoApiService.getMarketData(symbol);
+      const data = await clientCryptoApiService.getMarketData(symbol);
       setMarketData(data);
       setLastUpdate(new Date());
       
@@ -63,7 +65,7 @@ export function MarketData({ symbol, className, showChart = true, compact = fals
       // Try to use cached data as fallback
       try {
         // Check if we have any cached data to display
-        const fallbackData = await cryptoApiService.getMarketData(symbol);
+        const fallbackData = await clientCryptoApiService.getMarketData(symbol);
         if (fallbackData) {
           setMarketData(fallbackData);
           setError('Using cached data. Real-time updates may be delayed.');
@@ -345,7 +347,7 @@ export function MarketDataCompact({ symbol, className }: MarketDataProps) {
   useEffect(() => {
     const loadPrice = async () => {
       try {
-        const prices = await cryptoApiService.getCryptoPrices([symbol]);
+        const prices = await clientCryptoApiService.getCryptoPrices([symbol]);
         if (prices.length > 0) {
           setPrice(prices[0].price);
           setChange(prices[0].changePercent24h);
