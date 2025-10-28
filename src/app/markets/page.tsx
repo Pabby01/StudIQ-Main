@@ -1,23 +1,22 @@
 'use client';
 
-import { ClientSEO } from '@/lib/seo-utils';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Search, RefreshCw, Filter, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { formatCurrency } from '@/lib/wallet-data';
-import { secureLogger } from '@/lib/secure-logger';
-import AppLayout from '@/components/AppLayout';
-import { 
-  TrendingUp, 
-  TrendingDown,
-  RefreshCw,
-  Search,
-  Star,
-  Loader2
-} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { useMarketData } from '@/hooks/useMarketData';
+import { MarketTable } from '@/components/market/MarketTable';
+import { MarketStats } from '@/components/market/MarketStats';
 
+import { ClientSEO } from '@/lib/seo-utils';
+import AppLayout from '@/components/AppLayout';
+
+// SEO Metadata
 const seoMetadata = {
   title: 'Markets - Cryptocurrency Prices & Market Data | StudIQ',
   description: 'Real-time cryptocurrency prices, market data, and price charts. Track Bitcoin, Ethereum, Solana and other crypto assets with live market updates.',
@@ -57,276 +56,274 @@ const seoMetadata = {
   }
 };
 
-interface MarketData {
-  id: string;
-  symbol: string;
-  name: string;
-  current_price: number;
-  price_change_percentage_24h: number;
-  market_cap: number;
-  volume_24h: number;
-  image: string;
-}
-
 export default function MarketsPage() {
-  const [marketData, setMarketData] = useState<MarketData[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    coins,
+    loading,
+    error,
+    filters,
+    favorites,
+    lastUpdated,
+    hasMore,
+    totalCount,
+    isOnline,
+    updateFilters,
+    loadMore,
+    refresh,
+    toggleFavorite,
+    searchCoins,
+    retryFetch,
+  } = useMarketData(true);
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  // Mock market data - in a real app, this would come from an API like CoinGecko
-  const mockMarketData: MarketData[] = useMemo(() => ([
-    {
-      id: 'solana',
-      symbol: 'SOL',
-      name: 'Solana',
-      current_price: 89.54,
-      price_change_percentage_24h: 2.4,
-      market_cap: 38500000000,
-      volume_24h: 1200000000,
-      image: '/solana-logo.png'
-    },
-    {
-      id: 'usd-coin',
-      symbol: 'USDC',
-      name: 'USD Coin',
-      current_price: 1.00,
-      price_change_percentage_24h: 0.01,
-      market_cap: 25000000000,
-      volume_24h: 3500000000,
-      image: '/usdc-logo.png'
-    },
-    {
-      id: 'bitcoin',
-      symbol: 'BTC',
-      name: 'Bitcoin',
-      current_price: 43250.00,
-      price_change_percentage_24h: -1.2,
-      market_cap: 850000000000,
-      volume_24h: 15000000000,
-      image: '/bitcoin-logo.png'
-    },
-    {
-      id: 'solana',
-      symbol: 'SOL',
-      name: 'Solana',
-      current_price: 165.00,
-      price_change_percentage_24h: 3.1,
-      market_cap: 75000000000,
-      volume_24h: 2500000000,
-      image: '/solana-logo.png'
-    },
-    {
-      id: 'cardano',
-      symbol: 'ADA',
-      name: 'Cardano',
-      current_price: 0.52,
-      price_change_percentage_24h: -0.8,
-      market_cap: 18500000000,
-      volume_24h: 450000000,
-      image: '/cardano-logo.png'
-    },
-    {
-      id: 'chainlink',
-      symbol: 'LINK',
-      name: 'Chainlink',
-      current_price: 14.85,
-      price_change_percentage_24h: 4.2,
-      market_cap: 8200000000,
-      volume_24h: 380000000,
-      image: '/chainlink-logo.png'
-    }
-  ]), []);
-
-  const loadMarketData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setMarketData(mockMarketData);
-    } catch (error) {
-      secureLogger.error('Failed to load market data', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [mockMarketData]);
-
+  // Handle search with debouncing
   useEffect(() => {
-    loadMarketData();
-  }, [loadMarketData]);
+    const timer = setTimeout(() => {
+      searchCoins(searchTerm);
+    }, 300);
 
-  const toggleFavorite = (coinId: string) => {
-    setFavorites(prev => 
-      prev.includes(coinId) 
-        ? prev.filter(id => id !== coinId)
-        : [...prev, coinId]
-    );
+    return () => clearTimeout(timer);
+  }, [searchTerm, searchCoins]);
+
+  // Calculate market stats from current data
+  const marketStats = React.useMemo(() => {
+    if (!coins.length) {
+      return {
+        totalMarketCap: 0,
+        totalVolume: 0,
+        btcDominance: 0,
+        ethDominance: 0,
+        marketCapChange24h: 0,
+      };
+    }
+
+    const totalMarketCap = coins.reduce((sum, coin) => sum + coin.market_cap, 0);
+    const totalVolume = coins.reduce((sum, coin) => sum + coin.total_volume, 0);
+    
+    const btcCoin = coins.find(coin => coin.symbol === 'BTC');
+    const ethCoin = coins.find(coin => coin.symbol === 'ETH');
+    
+    const btcDominance = btcCoin ? (btcCoin.market_cap / totalMarketCap) * 100 : 0;
+    const ethDominance = ethCoin ? (ethCoin.market_cap / totalMarketCap) * 100 : 0;
+    
+    const marketCapChange24h = coins.reduce((sum, coin) => 
+      sum + coin.market_cap_change_percentage_24h, 0) / coins.length;
+
+    return {
+      totalMarketCap,
+      totalVolume,
+      btcDominance,
+      ethDominance,
+      marketCapChange24h,
+    };
+  }, [coins]);
+
+  // Filter coins based on favorites
+  const displayCoins = showFavoritesOnly 
+    ? coins.filter(coin => favorites.includes(coin.id))
+    : coins;
+
+  const handleSortChange = (value: string) => {
+     updateFilters({ order: value as 'market_cap_desc' | 'market_cap_asc' | 'volume_desc' | 'volume_asc' | 'id_asc' | 'id_desc' });
+   };
+
+  const handleRefresh = () => {
+    refresh();
   };
 
-  const filteredData = marketData.filter(coin =>
-    coin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    coin.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const formatMarketCap = (value: number) => {
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
-    return formatCurrency(value);
+  const formatLastUpdated = (date: Date | null) => {
+    if (!date) return 'Never';
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
   };
 
   return (
     <>
       <ClientSEO metadata={seoMetadata} />
       <AppLayout>
-        <div className="container mx-auto px-4 py-6 md:py-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Markets</h1>
-            <p className="text-muted-foreground text-sm md:text-base">
-              Real-time cryptocurrency prices and market data
-            </p>
-          </div>
-          <Button onClick={loadMarketData} disabled={isLoading} variant="outline" size="sm" className="md:size-default">
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden md:inline">Refresh</span>
-          </Button>
-        </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search cryptocurrencies..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Market Overview Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Market Cap</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$1.2T</div>
-            <p className="text-xs text-green-600">+2.1% (24h)</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">24h Volume</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$45.2B</div>
-            <p className="text-xs text-red-600">-1.5% (24h)</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">BTC Dominance</CardTitle>
-            <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-bold">₿</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">52.3%</div>
-            <p className="text-xs text-muted-foreground">Market share</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Coins</CardTitle>
-            <Badge variant="secondary">Live</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2,847</div>
-            <p className="text-xs text-muted-foreground">Cryptocurrencies</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Market Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Cryptocurrency Prices</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="ml-2">Loading market data...</span>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredData.map((coin, index) => (
-                <div key={coin.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-muted-foreground w-8">#{index + 1}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleFavorite(coin.id)}
-                      className="p-1"
-                    >
-                      <Star className={`h-4 w-4 ${favorites.includes(coin.id) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
-                    </Button>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-bold">{coin.symbol}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{coin.name}</p>
-                        <p className="text-sm text-muted-foreground">{coin.symbol.toUpperCase()}</p>
-                      </div>
-                    </div>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          <div className="container mx-auto px-4 py-6 max-w-7xl">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    Cryptocurrency Markets
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    Track real-time prices and market data for top cryptocurrencies
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <Clock className="h-4 w-4" />
+                    <span>Last updated: {formatLastUpdated(lastUpdated)}</span>
                   </div>
-                  
-                  <div className="flex items-center space-x-8">
-                    <div className="text-right">
-                      <p className="font-medium">{formatCurrency(coin.current_price)}</p>
-                    </div>
-                    
-                    <div className="text-right w-20">
-                      <div className={`flex items-center justify-end space-x-1 ${
-                        coin.price_change_percentage_24h >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {coin.price_change_percentage_24h >= 0 ? (
-                          <TrendingUp className="h-3 w-3" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3" />
-                        )}
-                        <span className="text-sm font-medium">
-                          {Math.abs(coin.price_change_percentage_24h).toFixed(2)}%
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right w-24">
-                      <p className="text-sm text-muted-foreground">
-                        {formatMarketCap(coin.market_cap)}
-                      </p>
-                    </div>
-                    
-                    <div className="text-right w-24">
-                      <p className="text-sm text-muted-foreground">
-                        {formatMarketCap(coin.volume_24h)}
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "h-2 w-2 rounded-full",
+                      isOnline ? "bg-green-500" : "bg-red-500"
+                    )} />
+                    <span className={cn(
+                      "text-sm font-medium",
+                      isOnline ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                    )}>
+                      {isOnline ? "Online" : "Offline"}
+                    </span>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Market Stats */}
+            {!loading && coins.length > 0 && (
+              <MarketStats {...marketStats} />
+            )}
+
+            {/* Controls */}
+            <div className="mb-6">
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search cryptocurrencies..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select value={filters.order} onValueChange={handleSortChange}>
+                    <SelectTrigger className="w-full sm:w-48">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="market_cap_desc">Market Cap ↓</SelectItem>
+                      <SelectItem value="market_cap_asc">Market Cap ↑</SelectItem>
+                      <SelectItem value="volume_desc">Volume ↓</SelectItem>
+                      <SelectItem value="volume_asc">Volume ↑</SelectItem>
+                      <SelectItem value="id_asc">Name A-Z</SelectItem>
+                      <SelectItem value="id_desc">Name Z-A</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    variant={showFavoritesOnly ? "default" : "outline"}
+                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                    className="flex items-center gap-2"
+                  >
+                    <Filter className="h-4 w-4" />
+                    Favorites {favorites.length > 0 && `(${favorites.length})`}
+                  </Button>
+
+                  <Button
+                    onClick={handleRefresh}
+                    disabled={loading}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Offline Alert */}
+            {!isOnline && (
+              <Alert className="mb-6" variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  You&apos;re currently offline. Data may not be up to date. Check your internet connection.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <Alert className="mb-6" variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="flex items-center justify-between">
+                  <span>{error}</span>
+                  <Button variant="outline" size="sm" onClick={retryFetch}>
+                    Retry
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Market Data */}
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Market Data</CardTitle>
+                    <CardDescription>
+                      Real-time cryptocurrency prices and market information
+                      {totalCount > 0 && ` • ${totalCount} cryptocurrencies`}
+                    </CardDescription>
+                  </div>
+                  {showFavoritesOnly && favorites.length === 0 && (
+                    <Badge variant="secondary">No favorites selected</Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {showFavoritesOnly && favorites.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 dark:text-gray-400 mb-4">
+                      You haven&apos;t added any cryptocurrencies to your favorites yet.
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowFavoritesOnly(false)}
+                    >
+                      View All Markets
+                    </Button>
+                  </div>
+                ) : (
+                  <MarketTable
+                    coins={displayCoins}
+                    loading={loading}
+                    favorites={favorites}
+                    onToggleFavorite={toggleFavorite}
+                    onSort={(field) => {
+                      // Handle sorting logic here if needed
+                      console.log('Sort by:', field);
+                    }}
+                  />
+                )}
+
+                {/* Load More Button */}
+                {!loading && hasMore && !showFavoritesOnly && (
+                  <div className="mt-6 text-center">
+                    <Button onClick={loadMore} variant="outline">
+                      Load More Cryptocurrencies
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Footer Info */}
+            <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+              <p>
+                Market data provided by CoinGecko API. Prices are updated every minute.
+              </p>
+              <p className="mt-1">
+                This information is for educational purposes only and should not be considered financial advice.
+              </p>
+            </div>
+          </div>
         </div>
       </AppLayout>
     </>

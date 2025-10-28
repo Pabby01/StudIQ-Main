@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { secureLogger } from '@/lib/secure-logger';
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,12 @@ import {
   Mail,
   Phone,
   Settings,
-  Loader2
+  Loader2,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 
 export default function WalletConnectButton() {
   const {
@@ -40,35 +43,78 @@ export default function WalletConnectButton() {
     hasWallet
   } = useAuth();
 
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle');
+
   const handleConnect = async () => {
     try {
       await login();
+      toast.success('Wallet connected successfully!');
     } catch (error) {
       secureLogger.error('Login failed', error);
+      toast.error('Failed to connect wallet. Please try again.');
     }
   };
 
   const handleLogout = async () => {
     try {
       await logout();
+      toast.success('Wallet disconnected successfully!');
     } catch (error) {
       secureLogger.error('Logout failed', error);
+      toast.error('Failed to disconnect wallet. Please try again.');
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string) => {
+    if (!text) {
+      toast.error('No wallet address available to copy');
+      return;
+    }
+
+    setCopyState('copying');
+    
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyState('copied');
+      toast.success('Wallet address copied to clipboard!');
+      
+      // Reset copy state after 2 seconds
+      setTimeout(() => {
+        setCopyState('idle');
+      }, 2000);
+    } catch (error) {
+      setCopyState('idle');
+      secureLogger.error('Failed to copy to clipboard', error);
+      toast.error('Failed to copy address. Please try again.');
+    }
   };
 
   const formatAddress = (address: string) => {
+    if (!address) return '';
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const openSolscanExplorer = (address: string) => {
+    if (!address) {
+      toast.error('No wallet address available');
+      return;
+    }
+
+    try {
+      const url = `https://solscan.io/account/${address}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+      toast.success('Opening Solscan explorer...');
+    } catch (error) {
+      secureLogger.error('Failed to open Solscan explorer', error);
+      toast.error('Failed to open explorer. Please try again.');
+    }
   };
 
   // Loading state
   if (!isReady) {
     return (
       <Button variant="outline" size="sm" disabled>
-        <Wallet className="h-4 w-4 mr-2" />
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
         Loading...
       </Button>
     );
@@ -82,6 +128,7 @@ export default function WalletConnectButton() {
         size="sm" 
         onClick={handleConnect}
         disabled={isLoading}
+        className="min-w-[120px]"
       >
         {isLoading ? (
           <>
@@ -94,6 +141,16 @@ export default function WalletConnectButton() {
             Connect Wallet
           </>
         )}
+      </Button>
+    );
+  }
+
+  // Handle case where user is authenticated but no wallet address
+  if (!walletAddress) {
+    return (
+      <Button variant="outline" size="sm" disabled>
+        <AlertCircle className="h-4 w-4 mr-2 text-yellow-600" />
+        No Wallet
       </Button>
     );
   }
@@ -145,8 +202,14 @@ export default function WalletConnectButton() {
             onClick={() => copyToClipboard(walletAddress)}
             className="font-mono text-xs"
           >
-            <Copy className="h-4 w-4 mr-2" />
-            {walletAddress}
+            {copyState === 'copying' ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : copyState === 'copied' ? (
+              <Check className="h-4 w-4 mr-2 text-green-600" />
+            ) : (
+              <Copy className="h-4 w-4 mr-2" />
+            )}
+            <span className="truncate">{walletAddress}</span>
           </DropdownMenuItem>
         )}
         
@@ -177,10 +240,10 @@ export default function WalletConnectButton() {
         
         {walletAddress && (
           <DropdownMenuItem 
-            onClick={() => window.open(`https://solscan.io/account/${walletAddress}`, '_blank')}
+            onClick={() => openSolscanExplorer(walletAddress)}
           >
             <ExternalLink className="h-4 w-4 mr-2" />
-            View on Explorer
+            View on Solscan
           </DropdownMenuItem>
         )}
         
