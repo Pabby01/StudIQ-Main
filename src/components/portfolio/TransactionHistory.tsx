@@ -29,6 +29,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { walletDataService, Transaction } from '@/lib/wallet-data';
+import { heliusTransactionService, ProcessedTransaction } from '@/lib/helius-transaction-service';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -46,9 +47,11 @@ interface TransactionFilters {
 }
 
 export function TransactionHistory({ walletAddress, className }: TransactionHistoryProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<ProcessedTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastSignature, setLastSignature] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
   const [filters, setFilters] = useState<TransactionFilters>({
     search: '',
     type: 'all',
@@ -63,20 +66,55 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
 
   useEffect(() => {
     loadTransactionHistory();
-  }, [walletAddress]);
+    
+    // Set up polling for real-time updates
+    const pollInterval = setInterval(() => {
+      if (!isLoading && walletAddress && lastSignature) {
+        pollForNewTransactions();
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [walletAddress, lastSignature, isLoading]);
 
   const loadTransactionHistory = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const history = await walletDataService.getWalletTransactions(walletAddress, 100);
+      // Use the new Helius transaction service
+      const history = await heliusTransactionService.getTransactionHistory(walletAddress, 100);
       setTransactions(history);
+      
+      // Set the last signature for polling
+      if (history.length > 0) {
+        setLastSignature(history[0].signature);
+      }
     } catch (err) {
       setError('Failed to load transaction history');
       console.error('Error loading transactions:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const pollForNewTransactions = async () => {
+    try {
+      setIsPolling(true);
+      
+      const newTransactions = await heliusTransactionService.getLatestTransactions(
+        walletAddress, 
+        lastSignature || undefined
+      );
+      
+      if (newTransactions.length > 0) {
+        setTransactions(prev => [...newTransactions, ...prev]);
+        setLastSignature(newTransactions[0].signature);
+      }
+    } catch (err) {
+      console.error('Error polling for new transactions:', err);
+    } finally {
+      setIsPolling(false);
     }
   };
 
@@ -89,14 +127,18 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
       filtered = filtered.filter(tx => 
         (tx.to?.toLowerCase().includes(searchLower)) ||
         (tx.from?.toLowerCase().includes(searchLower)) ||
-        tx.signature.toLowerCase().includes(searchLower)
+        (tx.counterparty?.toLowerCase().includes(searchLower)) ||
+        tx.signature.toLowerCase().includes(searchLower) ||
+        tx.description.toLowerCase().includes(searchLower)
       );
     }
 
     if (filters.type !== 'all') {
       filtered = filtered.filter(tx => {
-        if (filters.type === 'send') return tx.amount < 0;
-        if (filters.type === 'receive') return tx.amount > 0;
+        if (filters.type === 'send') return tx.type === 'send';
+        if (filters.type === 'receive') return tx.type === 'receive';
+        if (filters.type === 'deposit') return tx.type === 'receive';
+        if (filters.type === 'withdraw') return tx.type === 'send';
         return true;
       });
     }
@@ -106,7 +148,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
     }
 
     if (filters.token !== 'all') {
-      filtered = filtered.filter(tx => tx.symbol === filters.token);
+      filtered = filtered.filter(tx => tx.symbol === filters.token || tx.tokenSymbol === filters.token);
     }
 
     if (filters.dateRange !== 'all') {
@@ -166,13 +208,18 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
-  const getTransactionIcon = (transaction: Transaction) => {
-    const isOutgoing = transaction.amount < 0;
-    
-    if (isOutgoing) {
-      return <ArrowUpRight className="h-4 w-4 text-red-500" />;
-    } else {
-      return <ArrowDownLeft className="h-4 w-4 text-green-500" />;
+  const getTransactionIcon = (transaction: ProcessedTransaction) => {
+    switch (transaction.type) {
+      case 'send':
+        return <ArrowUpRight className="h-4 w-4 text-red-500" />;
+      case 'receive':
+        return <ArrowDownLeft className="h-4 w-4 text-green-500" />;
+      case 'swap':
+        return <Upload className="h-4 w-4 text-blue-500" />;
+      case 'nft':
+        return <Upload className="h-4 w-4 text-purple-500" />;
+      default:
+        return <ArrowUpRight className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -197,10 +244,12 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
     );
   };
 
-  const getTransactionType = (transaction: Transaction) => {
-    if (transaction.amount < 0) return 'Send';
-    if (transaction.amount > 0) return 'Receive';
-    return 'Unknown';
+  const getTransactionType = (transaction: ProcessedTransaction) => {
+    return transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1);
+  };
+
+  const getTransactionDescription = (transaction: ProcessedTransaction) => {
+    return transaction.description || transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1);
   };
 
   if (isLoading) {
@@ -241,14 +290,23 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
     <Card className={cn(className)}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Transaction History</span>
+          <div className="flex items-center gap-2">
+            <span>Transaction History</span>
+            {isPolling && (
+              <div className="flex items-center gap-1 text-sm text-blue-600">
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                <span className="text-xs">Live</span>
+              </div>
+            )}
+          </div>
           <Button
             variant="outline"
             size="sm"
             onClick={loadTransactionHistory}
+            disabled={isLoading}
             className="gap-2"
           >
-            <Clock className="h-4 w-4" />
+            <Clock className={cn("h-4 w-4", isLoading && "animate-spin")} />
             Refresh
           </Button>
         </CardTitle>
@@ -362,7 +420,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
                       </TableCell>
                       <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                       <TableCell className="text-right text-sm text-gray-600">
-                        ${transaction.usdValue.toFixed(2)}
+                        {transaction.usdValue ? `$${transaction.usdValue.toFixed(2)}` : 'N/A'}
                       </TableCell>
                     </TableRow>
                   ))}
