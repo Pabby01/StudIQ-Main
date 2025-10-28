@@ -3,8 +3,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePrivy } from '@privy-io/react-auth';
-import { Loader2, AlertCircle } from 'lucide-react';
-import LoadingTimeout from './LoadingTimeout';
+import { AlertCircle } from 'lucide-react';
+import GamifiedAccountCreation from './GamifiedAccountCreation';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -93,20 +93,10 @@ const AuthWrapper = React.memo(function AuthWrapper({
     }
     
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">{loadingMessage}</p>
-          {authState.isPrivyAuthenticatedButSyncing && (
-            <p className="text-sm text-gray-500 mt-2">
-              Creating your secure wallet...
-            </p>
-          )}
-          <LoadingTimeout>
-            <div></div>
-          </LoadingTimeout>
-        </div>
-      </div>
+      <GamifiedAccountCreation 
+        isWalletCreation={!!authState.isPrivyAuthenticatedButSyncing}
+        loadingMessage={loadingMessage}
+      />
     );
   }
 
