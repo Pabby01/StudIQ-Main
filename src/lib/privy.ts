@@ -21,7 +21,7 @@ const config: PrivyClientConfig = {
   appearance: {
     theme: 'light',
     accentColor: '#676FFF',
-    logo: 'https://your-logo-url.com/logo.png',
+    logo: 'https://i.postimg.cc/jjrt2Kdw/logo-2.jpg',
   },
   
   embeddedWallets: {
