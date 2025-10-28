@@ -155,10 +155,52 @@ export default function AITutor() {
       <ClientSEO metadata={seoMetadata} />
       <style jsx global>{`
         .sidebar-transition {
-          transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+          transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                      opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                      backdrop-filter 300ms cubic-bezier(0.4, 0, 0.2, 1);
+          will-change: transform, opacity, backdrop-filter;
         }
         .sidebar-backdrop {
           transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+          will-change: opacity;
+        }
+        .glassmorphism-sidebar {
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+                      0 4px 16px rgba(0, 0, 0, 0.05),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .glassmorphism-card {
+          background: rgba(255, 255, 255, 0.9);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08),
+                      0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .touch-target {
+          min-height: 48px;
+          min-width: 48px;
+          touch-action: manipulation;
+        }
+        @supports not (backdrop-filter: blur(8px)) {
+          .glassmorphism-sidebar {
+            background: rgba(255, 255, 255, 0.95);
+          }
+          .glassmorphism-card {
+            background: rgba(255, 255, 255, 0.98);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .sidebar-transition {
+            transition: none;
+          }
+          .sidebar-backdrop {
+            transition: none;
+          }
         }
       `}</style>
       <AppLayout>
@@ -244,48 +286,80 @@ export default function AITutor() {
         <div className="flex flex-col md:flex-row gap-6 relative">
           {/* Mobile Sidebar Overlay */}
           {isMobile && isSidebarOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} />
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-30 z-40 md:hidden sidebar-backdrop" 
+              onClick={() => setIsSidebarOpen(false)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+                  setIsSidebarOpen(false);
+                }
+              }}
+              aria-label="Close sidebar"
+            />
           )}
           
           {/* Sidebar */}
-          <div className={`${isMobile ? 'fixed inset-y-0 right-0 w-80 bg-white z-50 sidebar-transition md:relative md:transform-none' : 'w-full md:w-80'} ${isMobile && !isSidebarOpen ? 'translate-x-full' : ''} md:block`}>
-            <div className="space-y-6 h-full overflow-y-auto p-4 md:p-0">
+          <div 
+            className={`${
+              isMobile 
+                ? 'fixed inset-y-0 right-0 w-80 z-50 sidebar-transition glassmorphism-sidebar rounded-l-2xl md:relative md:transform-none md:bg-white md:backdrop-filter-none md:border-0 md:shadow-none md:rounded-none' 
+                : 'w-full md:w-80'
+            } ${
+              isMobile && !isSidebarOpen ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+            } md:block md:opacity-100 md:translate-x-0`}
+            role="complementary"
+            aria-label="Chat history and learning resources"
+            aria-hidden={isMobile && !isSidebarOpen}
+          >
+            <div className="space-y-6 h-full overflow-y-auto p-6 md:p-0">
               {/* Chat History */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <History className="h-5 w-5" />
+              <Card className={isMobile ? "glassmorphism-card rounded-2xl border-0" : ""}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-2 text-gray-900">
+                    <History className="h-5 w-5 text-blue-600" />
                     <span>Chat History</span>
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-gray-700">
                     Your previous conversations
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2 max-h-48 overflow-y-auto">
+                <CardContent className="space-y-3 max-h-48 overflow-y-auto">
                   {isLoadingHistory ? (
                     <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      <span className="ml-2 text-sm text-gray-600">Loading...</span>
                     </div>
                   ) : sessions.length > 0 ? (
                     sessions.map((session) => (
                       <div
                         key={session.id}
-                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                        className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 touch-target group ${
                           currentSession?.id === session.id
-                            ? 'bg-blue-100 border border-blue-200'
-                            : 'hover:bg-gray-50'
+                            ? 'bg-blue-100/80 border border-blue-200/60 shadow-sm'
+                            : 'hover:bg-gray-100/60 hover:shadow-sm'
                         }`}
                         onClick={() => {
                           loadSession(session.id);
                           if (isMobile) setIsSidebarOpen(false);
                         }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            loadSession(session.id);
+                            if (isMobile) setIsSidebarOpen(false);
+                          }
+                        }}
+                        aria-label={`Load chat session: ${session.title}`}
                       >
-                        <div className="flex items-center space-x-2 flex-1 min-w-0">
-                          <MessageSquare className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <MessageSquare className="h-4 w-4 text-blue-500 flex-shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{session.title}</p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-sm font-medium truncate text-gray-900">{session.title}</p>
+                            <p className="text-xs text-gray-600">
                               {new Date(session.updated_at).toLocaleDateString()}
                             </p>
                           </div>
@@ -293,15 +367,16 @@ export default function AITutor() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
+                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 transition-all duration-200 touch-target"
                           onClick={(e) => handleDeleteSession(session.id, e)}
+                          aria-label={`Delete chat session: ${session.title}`}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">
+                    <p className="text-sm text-gray-600 text-center py-4">
                       No chat history yet. Start a conversation!
                     </p>
                   )}
@@ -309,27 +384,28 @@ export default function AITutor() {
               </Card>
 
               {/* Example Topics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Lightbulb className="h-5 w-5" />
+              <Card className={isMobile ? "glassmorphism-card rounded-2xl border-0" : ""}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-2 text-gray-900">
+                    <Lightbulb className="h-5 w-5 text-amber-500" />
                     <span>Example Topics</span>
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-gray-700">
                     Click on any topic to get started
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-3">
                   {EXAMPLE_TOPICS.map((topic, index) => (
                     <Button
                       key={index}
                       variant="outline"
                       size="sm"
-                      className="w-full text-left justify-start h-auto p-3 min-h-[48px] touch-manipulation hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                      className="w-full text-left justify-start h-auto p-4 touch-target hover:bg-blue-50/80 hover:border-blue-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 rounded-xl border-gray-200/60 text-gray-800 hover:text-blue-700"
                       onClick={() => {
                         handleExampleClick(topic);
                         if (isMobile) setIsSidebarOpen(false);
                       }}
+                      aria-label={`Ask about: ${topic}`}
                     >
                       {topic}
                     </Button>
@@ -338,42 +414,54 @@ export default function AITutor() {
               </Card>
 
               {/* Learning Categories */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <BookOpen className="h-5 w-5" />
+              <Card className={isMobile ? "glassmorphism-card rounded-2xl border-0" : ""}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-2 text-gray-900">
+                    <BookOpen className="h-5 w-5 text-emerald-500" />
                     <span>Learning Categories</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center space-x-2">
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 transition-colors duration-200">
                     <TrendingUp className="h-4 w-4 text-green-600" />
-                    <span className="text-sm">Investing & DeFi</span>
-                    <Badge variant="secondary">Beginner</Badge>
+                    <span className="text-sm font-medium text-gray-800">Investing & DeFi</span>
+                    <Badge variant="secondary" className="ml-auto bg-green-100 text-green-700 border-green-200">Beginner</Badge>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 transition-colors duration-200">
                     <Shield className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm">Risk Management</span>
-                    <Badge variant="secondary">Essential</Badge>
+                    <span className="text-sm font-medium text-gray-800">Risk Management</span>
+                    <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-700 border-blue-200">Essential</Badge>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 transition-colors duration-200">
                     <Brain className="h-4 w-4 text-purple-600" />
-                    <span className="text-sm">Financial Planning</span>
-                    <Badge variant="secondary">Core</Badge>
+                    <span className="text-sm font-medium text-gray-800">Financial Planning</span>
+                    <Badge variant="secondary" className="ml-auto bg-purple-100 text-purple-700 border-purple-200">Core</Badge>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Tips */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>💡 Pro Tips</CardTitle>
+              <Card className={isMobile ? "glassmorphism-card rounded-2xl border-0" : ""}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-gray-900">💡 Pro Tips</CardTitle>
                 </CardHeader>
-                <CardContent className="text-sm text-gray-600 space-y-2">
-                  <p>• Ask specific questions for better answers</p>
-                  <p>• Request examples with real numbers</p>
-                  <p>• Ask for step-by-step explanations</p>
-                  <p>• Your conversations are automatically saved</p>
+                <CardContent className="text-sm text-gray-700 space-y-3">
+                  <div className="flex items-start space-x-2">
+                    <span className="text-blue-500 font-medium">•</span>
+                    <p>Ask specific questions for better answers</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <span className="text-blue-500 font-medium">•</span>
+                    <p>Request examples with real numbers</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <span className="text-blue-500 font-medium">•</span>
+                    <p>Ask for step-by-step explanations</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <span className="text-blue-500 font-medium">•</span>
+                    <p>Your conversations are automatically saved</p>
+                  </div>
                 </CardContent>
               </Card>
             </div>
