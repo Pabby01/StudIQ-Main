@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
@@ -16,6 +17,7 @@ import { websocketService } from '@/lib/websocket-service';
 import { securityService } from '@/lib/security-service';
 import { secureLogger } from '@/lib/secure-logger';
 import { useWalletAddress } from '@/lib/wallet-utils';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { BalanceDisplay, useBalanceVisibility } from '@/components/portfolio/BalanceToggle';
 import { TransactionModal } from '@/components/portfolio/TransactionModal';
 import { TransactionHistory } from '@/components/portfolio/TransactionHistory';
@@ -68,17 +70,30 @@ export default function PortfolioPage() {
   const { user, authenticated, ready } = usePrivy();
   const walletAddress = useWalletAddress();
   const [displayWalletAddress, setDisplayWalletAddress] = useState<string | null>(null);
-  const [walletBalance, setWalletBalance] = useState<WalletPortfolio | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [transactionType, setTransactionType] = useState<'send' | 'receive' | 'deposit' | 'withdraw'>('send');
   const [marketPrices, setMarketPrices] = useState<Record<string, number>>({});
   const [isSessionValid, setIsSessionValid] = useState(false);
   
   const { isBalanceVisible, toggleBalanceVisibility } = useBalanceVisibility();
+
+  // Use shared wallet balance hook for real-time synchronization
+  const {
+    balance: walletBalance,
+    portfolio: walletPortfolio,
+    isLoading,
+    error,
+    lastUpdated,
+    refreshBalance,
+    clearError
+  } = useWalletBalance({
+    autoRefresh: true,
+    refreshInterval: 30000, // 30 seconds
+    enableRealTimeSync: true,
+    enableWebSocketSync: true, // Enable real-time WebSocket updates
+  });
 
   // Format currency helper
   const formatCurrency = (amount: number): string => {
@@ -92,47 +107,29 @@ export default function PortfolioPage() {
 
 
 
-  // Load wallet data
+  // Load additional wallet data (profile, etc.)
   const loadWalletData = useCallback(async () => {
     if (!authenticated || !walletAddress.isValid) return;
 
     try {
-      setIsLoading(true);
-      setError(null);
-      
       // Set session as valid since we're using Privy authentication
       setIsSessionValid(true);
 
       const address = walletAddress.address!;
-
-      // Load wallet balance
-      const balance = await walletDataService.getWalletBalance(address);
-      setWalletBalance({
-        balance,
-        transactions: [],
-        performance: {
-          dayChange: 0,
-          dayChangePercent: 0,
-          weekChange: 0,
-          weekChangePercent: 0
-        }
-      });
       
       // Load user profile
       const profile = await userProfileManager.getProfile(address);
       setUserProfile(profile);
       
-      // Load transactions (handled by TransactionHistory component)
+      // Refresh wallet balance using shared hook
+      await refreshBalance();
       
       secureLogger.info('Portfolio data loaded successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load wallet data';
-      setError(errorMessage);
       secureLogger.error('Failed to load portfolio data', { error: errorMessage, walletAddress: walletAddress.address });
-    } finally {
-      setIsLoading(false);
     }
-  }, [authenticated, walletAddress.isValid, walletAddress.address]);
+  }, [authenticated, walletAddress.isValid, walletAddress.address, refreshBalance]);
 
   // Handle transaction modal
   const openTransactionModal = (type: 'send' | 'receive' | 'deposit' | 'withdraw') => {
@@ -150,13 +147,8 @@ export default function PortfolioPage() {
     const portfolioSubscription = websocketService.subscribeToPortfolioUpdates(
       walletAddress,
       (update) => {
-        setWalletBalance(prev => prev ? { 
-          ...prev, 
-          balance: { 
-            ...prev.balance, 
-            ...update 
-          } 
-        } : prev);
+        // Trigger a refresh of the shared balance hook when WebSocket updates arrive
+        refreshBalance();
         secureLogger.info('Portfolio updated via WebSocket');
       }
     );
@@ -278,16 +270,28 @@ export default function PortfolioPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+              ) : (
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              )}
             </CardHeader>
             <CardContent>
               <BalanceDisplay 
-                amount={walletBalance?.balance?.totalUsdValue || 0} 
+                amount={walletBalance?.totalUsdValue || 0} 
                 isVisible={isBalanceVisible}
                 className="text-2xl font-bold"
               />
               <p className="text-xs text-muted-foreground">
-                {walletBalance?.balance && `Updated ${walletBalance.balance.lastUpdated.toLocaleTimeString()}`}
+                {error ? (
+                  <button onClick={clearError} className="text-red-500 hover:text-red-700 underline">
+                    Error - Click to retry
+                  </button>
+                ) : lastUpdated ? (
+                  `Updated ${lastUpdated.toLocaleTimeString()}`
+                ) : (
+                  'Loading...'
+                )}
               </p>
             </CardContent>
           </Card>
@@ -301,13 +305,13 @@ export default function PortfolioPage() {
             </CardHeader>
             <CardContent>
               <BalanceDisplay 
-                amount={walletBalance?.balance?.solBalance || 0} 
+                amount={walletBalance?.solBalance || 0} 
                 currency="SOL"
                 isVisible={isBalanceVisible}
                 className="text-2xl font-bold"
               />
               <p className="text-xs text-muted-foreground">
-                {walletBalance?.balance && formatCurrency(walletBalance.balance.solBalance * (marketPrices['SOL'] || 89))}
+                {walletBalance && formatCurrency(walletBalance.solBalance * (marketPrices['SOL'] || 89))}
               </p>
             </CardContent>
           </Card>
@@ -316,12 +320,12 @@ export default function PortfolioPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Tokens</CardTitle>
               <Badge variant="secondary">
-                {walletBalance?.balance ? walletBalance.balance.tokens.length : 0}
+                {walletBalance ? walletBalance.tokens.length : 0}
               </Badge>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {walletBalance?.balance ? walletBalance.balance.tokens.length : 0}
+                {walletBalance ? walletBalance.tokens.length : 0}
               </div>
               <p className="text-xs text-muted-foreground">Different tokens</p>
             </CardContent>
@@ -342,9 +346,9 @@ export default function PortfolioPage() {
                 <Loader2 className="h-6 w-6 animate-spin" />
                 <span className="ml-2">Loading tokens...</span>
               </div>
-            ) : walletBalance?.balance && walletBalance.balance.tokens.length > 0 ? (
+            ) : walletBalance && walletBalance.tokens.length > 0 ? (
               <div className="space-y-4">
-                {walletBalance.balance.tokens.map((token) => (
+                {walletBalance.tokens.map((token) => (
                   <div key={token.mint} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
@@ -393,7 +397,7 @@ export default function PortfolioPage() {
           type={transactionType}
           walletAddress={displayWalletAddress || ''}
           onTransactionComplete={loadWalletData}
-          availableTokens={walletBalance?.balance?.tokens.map(token => token.symbol) || ['SOL', 'USDC', 'USDT']}
+          availableTokens={walletBalance?.tokens.map(token => token.symbol) || ['SOL', 'USDC', 'USDT']}
         />
 
         {/* Mobile Navigation */}

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Wallet, Award, DollarSign, Star, Bot, PiggyBank, Store, RefreshCw, AlertCircle } from 'lucide-react';
 import { useUserData } from '@/hooks/useUserData';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
 import AppLayout from '@/components/AppLayout';
 import AuthWrapper from '@/components/AuthWrapper';
 import OnboardingFlow from '@/components/OnboardingFlow';
@@ -19,7 +20,6 @@ export default function DashboardPage() {
   const { user, authenticated } = usePrivy();
   const { wallets } = useWallets();
   const router = useRouter();
-  const [walletBalance, setWalletBalance] = useState<any>(null);
 
   console.log('DashboardPage: Privy authentication state:', { user, authenticated });
 
@@ -40,7 +40,6 @@ function DashboardContent() {
   const { user, authenticated } = usePrivy();
   const { wallets } = useWallets();
   const router = useRouter();
-  const [walletBalance, setWalletBalance] = useState<any>(null);
 
   const {
     profile: userProfile,
@@ -53,6 +52,21 @@ function DashboardContent() {
     updateProfile,
     updatePreferences
   } = useUserData();
+
+  // Use shared wallet balance hook for real-time synchronization
+  const {
+    balance: walletBalance,
+    isLoading: walletBalanceLoading,
+    error: walletBalanceError,
+    lastUpdated: walletLastUpdated,
+    refreshBalance: refreshWalletBalance,
+    clearError: clearWalletError
+  } = useWalletBalance({
+    autoRefresh: true,
+    refreshInterval: 30000, // 30 seconds
+    enableRealTimeSync: true,
+    enableWebSocketSync: true // Enable real-time WebSocket updates
+  });
 
   // Calculate portfolio data from real stats
   const portfolioData = userStats ? [
@@ -187,18 +201,37 @@ function DashboardContent() {
         <Card className="col-span-2 lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-            {userDataLoading ? (
+            {walletBalanceLoading ? (
               <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+            ) : walletBalanceError ? (
+              <AlertCircle className="h-4 w-4 text-red-500" />
             ) : (
               <Wallet className="h-4 w-4 text-muted-foreground" />
             )}
           </CardHeader>
           <CardContent>
             <div className="text-xl md:text-2xl font-bold">
-              {walletBalance ? `$${walletBalance.totalUsdValue.toFixed(2)}` : '$0.00'}
+              {walletBalanceError ? (
+                <span className="text-red-500">Error</span>
+              ) : walletBalance ? (
+                `$${walletBalance.totalUsdValue.toFixed(2)}`
+              ) : (
+                '$0.00'
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {userProfile?.display_name || 'Connected Wallet'}
+              {walletBalanceError ? (
+                <button 
+                  onClick={clearWalletError}
+                  className="text-red-500 hover:text-red-700 underline"
+                >
+                  Click to retry
+                </button>
+              ) : walletLastUpdated ? (
+                `Updated ${walletLastUpdated.toLocaleTimeString()}`
+              ) : (
+                userProfile?.display_name || 'Connected Wallet'
+              )}
             </p>
           </CardContent>
         </Card>
@@ -283,8 +316,13 @@ function DashboardContent() {
               <Button 
                 variant="outline" 
                 className="justify-start"
-                onClick={() => refreshData()}
-                disabled={userDataLoading}
+                onClick={async () => {
+                  await Promise.all([
+                    refreshData(),
+                    refreshWalletBalance()
+                  ]);
+                }}
+                disabled={userDataLoading || walletBalanceLoading}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh Data
