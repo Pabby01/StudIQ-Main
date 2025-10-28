@@ -135,7 +135,7 @@ export function Footer() {
               {/* Social Icons */}
               <div className="flex items-center space-x-4">
                 <Link 
-                  href="https://twitter.com/studiq" 
+                  href="https://x.com/StudIQ_main" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group relative p-2 rounded-lg bg-gradient-to-r from-slate-800/50 to-purple-800/50 border border-purple-500/20 hover:border-purple-400/40 transition-all duration-300 hover:scale-110"
@@ -145,7 +145,7 @@ export function Footer() {
                 </Link>
                 
                 <Link 
-                  href="https://github.com/studiq" 
+                  href="https://github.com/Pabby01/StudIQ-Main" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group relative p-2 rounded-lg bg-gradient-to-r from-slate-800/50 to-purple-800/50 border border-purple-500/20 hover:border-purple-400/40 transition-all duration-300 hover:scale-110"
@@ -155,7 +155,7 @@ export function Footer() {
                 </Link>
                 
                 <Link 
-                  href="https://linkedin.com/company/studiq" 
+                  href="https://linkedin.com/company" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group relative p-2 rounded-lg bg-gradient-to-r from-slate-800/50 to-purple-800/50 border border-purple-500/20 hover:border-purple-400/40 transition-all duration-300 hover:scale-110"
@@ -185,7 +185,7 @@ export function Footer() {
                 </Link>
                 
                 <Link 
-                  href="https://studiq.com" 
+                  href="https://www.studiq.fun" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group relative p-2 rounded-lg bg-gradient-to-r from-slate-800/50 to-purple-800/50 border border-purple-500/20 hover:border-purple-400/40 transition-all duration-300 hover:scale-110"
