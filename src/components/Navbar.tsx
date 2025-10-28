@@ -6,11 +6,12 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import WalletConnectButton from './WalletConnectButton';
-import { Menu, Home, Brain, Coins, Store, ShoppingBagIcon } from 'lucide-react';
+import { Menu, Home, Brain, Coins, Store, ShoppingBagIcon, TrendingUp } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'AI Tutor', href: '/ai-tutor', icon: Brain },
+  { name: 'Markets', href: '/markets', icon: TrendingUp },
   { name: 'Savings Pools', href: '/pools', icon: Coins },
   { name: 'Campus Store', href: '/stores', icon: Store },
   { name: 'Portfolio', href: '/portfolio', icon: ShoppingBagIcon },
@@ -59,7 +60,7 @@ export function Navbar() {
 
           {/* Tablet Navigation (md screens) */}
           <div className="hidden md:flex lg:hidden items-center space-x-4">
-            {navigation.slice(0, 3).map((item) => {
+            {navigation.slice(0, 4).map((item) => {
               const Icon = item.icon;
               return (
                 <Link
@@ -100,6 +101,7 @@ export function Navbar() {
                         href={item.href}
                         onClick={() => setIsOpen(false)}
                         className="flex items-center space-x-3 text-gray-600 hover:text-blue-600 transition-colors p-3 rounded-lg hover:bg-gray-50 min-h-[48px]"
+                        aria-label={item.name}
                       >
                         <Icon className="h-5 w-5 flex-shrink-0" />
                         <span className="font-medium">{item.name}</span>
