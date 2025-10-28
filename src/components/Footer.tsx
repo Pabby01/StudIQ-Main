@@ -175,7 +175,7 @@ export function Footer() {
                 </Link>
                 
                 <Link 
-                  href="https://t.me/studiq" 
+                  href="https://t.me/studiq_main" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group relative p-2 rounded-lg bg-gradient-to-r from-slate-800/50 to-purple-800/50 border border-purple-500/20 hover:border-purple-400/40 transition-all duration-300 hover:scale-110"
