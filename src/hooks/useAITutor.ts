@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { secureLogger } from '@/lib/secure-logger';
 import { ChatManager } from '@/lib/database-utils';
+import { buildHeaders } from '@/lib/client-database-utils';
 
 export interface Message {
   id: string;
@@ -222,6 +223,7 @@ export const useAITutor = (): AITutorState => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...buildHeaders(),
         },
         body: JSON.stringify({
           messages: [...messages, userMessage].map(m => ({

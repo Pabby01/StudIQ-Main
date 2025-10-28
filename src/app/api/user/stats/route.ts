@@ -137,8 +137,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ stats: existingStats }, { status: 200 })
       }
 
+      // In the POST function, replace the createStats call with upsertStats
       // Create the user stats using the server-side admin client
-      const stats = await UserStatsManager.createStats(sanitizedData)
+      // Create the user stats using upsert to handle both new and existing stats
+      const stats = await UserStatsManager.upsertStats(sanitizedData)
       
       return NextResponse.json({ stats }, { status: 201 })
     } finally {

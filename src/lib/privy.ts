@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { PrivyProvider } from '@privy-io/react-auth';
 import type { PrivyClientConfig } from '@privy-io/react-auth';
+import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 
 // Validate required environment variables
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
@@ -7,41 +9,47 @@ if (!appId) {
   throw new Error('NEXT_PUBLIC_PRIVY_APP_ID is required for Privy authentication. Please set this environment variable.');
 }
 
+// Configure Solana wallet connectors
+const solanaConnectors = toSolanaWalletConnectors({
+  // Enable auto-connect for better UX
+  shouldAutoConnect: true,
+});
+
+const config: PrivyClientConfig = {
+  loginMethods: ['email', 'wallet'],
+  
+  appearance: {
+    theme: 'light',
+    accentColor: '#676FFF',
+    logo: 'https://your-logo-url.com/logo.png',
+  },
+  
+  embeddedWallets: {
+    ethereum: {
+      createOnLogin: 'off'
+    },
+    solana: {
+      createOnLogin: 'users-without-wallets'
+    }
+  },
+  
+  externalWallets: {
+    solana: {}
+  },
+  
+  legal: {
+    termsAndConditionsUrl: 'https://your-terms-url.com',
+    privacyPolicyUrl: 'https://your-privacy-url.com',
+  },
+  
+  mfa: {
+    noPromptOnMfaRequired: false,
+  },
+};
+
 export const privyConfig = {
-  appId: appId,
-  config: {
-    // Enable all authentication methods
-    loginMethods: ['wallet', 'email', 'sms', 'google', 'apple'],
-    
-    // Appearance configuration
-    appearance: {
-      theme: 'light' as const,
-      accentColor: '#3B82F6',
-      logo: '/logo.jpg',
-      showWalletLoginFirst: false,
-      walletChainType: 'solana-only' as const, // Solana only
-    },
-    
-    // Embedded wallet configuration for automatic wallet creation
-    embeddedWallets: {
-      solana: {
-        createOnLogin: 'users-without-wallets' as const,
-      },
-    },
-    
-    // Legal and privacy configuration
-    legal: {
-      termsAndConditionsUrl: '/terms',
-      privacyPolicyUrl: '/privacy',
-    },
-    
-    // Additional security and UX settings
-    mfa: {
-      noPromptOnMfaRequired: false,
-    },
-    
-    // Wallet connection settings - Solana only (configured via walletChainType)
-  } satisfies PrivyClientConfig,
+  appId,
+  config
 };
 
 export { PrivyProvider };

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -51,12 +52,57 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
       if (user.isNewUser || !user.displayName) {
         setCurrentStep('profile');
       } else {
+        // For existing users, ensure they have complete data before proceeding
+        const initializeExistingUser = async () => {
+          // Wait for wallet to be available
+          if (!walletAddress || !user.id) {
+            secureLogger.debug('Waiting for wallet address before initialization', { userId: user.id });
+            return;
+          }
+
+          try {
+            // Get the Privy access token for authentication
+            const token = await (user as { getAccessToken?: () => Promise<string> }).getAccessToken?.();
+            
+            // Try to initialize user data if it doesn't exist
+            await fetch('/api/user/initialize', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 
+                  'x-privy-token': token,
+                  'Authorization': `Bearer ${token}`
+                })
+              },
+              body: JSON.stringify({
+                user_id: user.id,
+                wallet_address: walletAddress,
+                display_name: user.displayName,
+                email: user.email,
+                phone: user.phone
+              })
+            });
+            secureLogger.info('User data initialization completed', { userId: user.id });
+          } catch (error) {
+            // Silently handle errors - user data might already exist
+            secureLogger.debug('User data initialization check completed', { userId: user.id });
+          }
+        };
+        
+        initializeExistingUser();
         setCurrentStep('complete');
       }
     } else {
       setCurrentStep('auth');
     }
-  }, [isReady, isAuthenticated, user]);
+  }, [isReady, isAuthenticated, user, walletAddress]);
+
+  // Wait for wallet to be available before allowing profile submission
+  useEffect(() => {
+    if (currentStep === 'profile' && !walletAddress && isAuthenticated) {
+      secureLogger.debug('Waiting for wallet creation before profile setup', { userId: user?.id });
+    }
+  }, [currentStep, walletAddress, isAuthenticated, user?.id]);
 
   // Auto-complete onboarding when user is fully set up
   useEffect(() => {
@@ -76,6 +122,12 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
   }, [authError]);
 
   const handleAuth = async () => {
+    // Prevent login if already authenticated
+    if (isAuthenticated) {
+      secureLogger.debug('Login attempted while already authenticated');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -103,12 +155,73 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
       return;
     }
 
+    if (!user) {
+      setError('User authentication required');
+      return;
+    }
+
+    // Wait for wallet to be available
+    if (!walletAddress) {
+      setError('Wallet not ready. Please wait a moment and try again.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await updateProfile({
+      secureLogger.info('Starting user initialization', {
+        userId: user.id,
+        walletAddress: walletAddress,
         displayName: displayName.trim()
       });
+
+      // Get the Privy access token for authentication
+      const token = await (user as { getAccessToken?: () => Promise<string> }).getAccessToken?.();
+      secureLogger.info('Got access token', { hasToken: !!token });
+
+      // Initialize user data first to ensure all records are created
+      const initResponse = await fetch('/api/user/initialize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 
+            'x-privy-token': token,
+            'Authorization': `Bearer ${token}`
+          })
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          wallet_address: walletAddress,
+          display_name: displayName.trim(),
+          email: user.email || null,
+          phone: user.phone || null
+        })
+      });
+
+      secureLogger.info('User initialization response received', {
+        status: initResponse.status,
+        statusText: initResponse.statusText
+      });
+
+      if (!initResponse.ok) {
+        const errorData = await initResponse.json().catch(() => ({}));
+        secureLogger.error('User initialization failed', {
+          status: initResponse.status,
+          error: errorData.error || 'Unknown error',
+          details: errorData.details
+        });
+        throw new Error(errorData.error || 'Failed to initialize user data');
+      }
+
+      const result = await initResponse.json();
+      secureLogger.info('User initialization completed', {
+        userId: user.id,
+        displayName: displayName.trim(),
+        hasProfile: !!result.profile,
+        hasStats: !!result.stats,
+        hasPreferences: !!result.preferences
+      });
+
       setCurrentStep('complete');
     } catch (err) {
       setError('Failed to create profile. Please try again.');
@@ -189,7 +302,7 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
 
             <Button
               onClick={handleAuth}
-              disabled={isLoading || authLoading}
+              disabled={isLoading || authLoading || isAuthenticated}
               className="w-full min-h-[48px] touch-manipulation"
               size="lg"
             >
@@ -270,6 +383,26 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
                   <div className="text-blue-700">Get customized greetings and recommendations</div>
                 </div>
               </div>
+              
+              {!walletAddress && (
+                <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <Loader2 className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5 animate-spin" />
+                  <div className="text-sm">
+                    <div className="font-medium text-yellow-900">Setting up your wallet</div>
+                    <div className="text-yellow-700">Please wait while we create your secure wallet...</div>
+                  </div>
+                </div>
+              )}
+              
+              {walletAddress && (
+                <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <div className="font-medium text-green-900">Wallet Ready</div>
+                    <div className="text-green-700">Your secure wallet has been created</div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Button

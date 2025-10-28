@@ -1,8 +1,49 @@
 import { secureLogger } from './secure-logger';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { normalizeWalletAddress, isValidSolanaAddress } from './wallet-utils';
-import { rateLimiters, RateLimitResult } from './redis-rate-limiter';
 import { auditLogger } from './audit-logger';
+import { buildHeaders } from './client-database-utils';
+
+// Rate limit result interface (duplicated to avoid import dependency)
+export interface RateLimitResult {
+  allowed: boolean;
+  current: number;
+  remaining: number;
+  resetTime: Date;
+  retryAfter?: number;
+}
+
+// Rate limiter interface for type safety
+interface RateLimiterInstance {
+  initialize(): Promise<void>;
+  isAvailable(): boolean;
+  consume(key: string): Promise<RateLimitResult>;
+  getStatus(key: string): Promise<RateLimitResult>;
+}
+
+interface RateLimitersCollection {
+  api: RateLimiterInstance;
+  transactions: RateLimiterInstance;
+  auth: RateLimiterInstance;
+  prices: RateLimiterInstance;
+}
+
+// Conditional import for server-side only
+let rateLimiters: RateLimitersCollection | null = null;
+
+// Only import Redis rate limiter on server side
+if (typeof window === 'undefined') {
+  // Use dynamic import instead of require for better TypeScript support
+  import('./redis-rate-limiter')
+    .then((redisModule) => {
+      rateLimiters = redisModule.rateLimiters;
+    })
+    .catch((error) => {
+      secureLogger.warn('Redis rate limiter not available, running without rate limiting', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    });
+}
 
 export interface CryptoPrice {
   symbol: string;
@@ -108,20 +149,26 @@ class CryptoApiService {
   private rateLimitMap: Map<string, number[]> = new Map(); // operation -> timestamps
 
   /**
-   * Initialize the service with Redis rate limiting
+   * Initialize the service with Redis rate limiting (server-side only)
    */
   async initialize(): Promise<void> {
-    try {
-      await rateLimiters.api.initialize();
-      await rateLimiters.transactions.initialize();
-      await rateLimiters.auth.initialize();
-      await rateLimiters.prices.initialize();
-      
-      secureLogger.info('Crypto API service initialized with Redis rate limiting');
-    } catch (error) {
-      secureLogger.error('Failed to initialize Redis rate limiting', error);
-      // Continue with in-memory rate limiting as fallback
-      secureLogger.info('Falling back to in-memory rate limiting');
+    // Only initialize Redis rate limiting on server side
+    if (rateLimiters) {
+      try {
+        await rateLimiters.api.initialize();
+        await rateLimiters.transactions.initialize();
+        await rateLimiters.auth.initialize();
+        await rateLimiters.prices.initialize();
+        
+        secureLogger.info('Crypto API service initialized with Redis rate limiting');
+      } catch (error) {
+        secureLogger.error('Failed to initialize Redis rate limiting', error);
+        // Continue with in-memory rate limiting as fallback
+        secureLogger.info('Falling back to in-memory rate limiting');
+      }
+    } else {
+      // Client-side: no Redis rate limiting needed
+      secureLogger.info('Crypto API service initialized (client-side, no Redis rate limiting)');
     }
   }
 
@@ -130,34 +177,36 @@ class CryptoApiService {
    */
   private async checkRateLimit(operation: 'api' | 'transactions' | 'auth' | 'prices'): Promise<boolean> {
     try {
-      // Try Redis rate limiter first
-      const rateLimiter = rateLimiters[operation];
-      if (rateLimiter.isAvailable()) {
-        const result = await rateLimiter.consume(`${operation}:${this.getClientId()}`);
-        
-        if (!result.allowed) {
-          secureLogger.warn('Rate limit exceeded', {
-            operation,
-            current: result.current,
-            remaining: result.remaining,
-            resetTime: result.resetTime
-          });
-
-          // Log rate limit violation for audit
-          auditLogger.logRateLimitViolation({
-            userId: this.getClientId(),
-            action: operation,
-            violationType: 'rate_limit_exceeded',
-            timestamp: Date.now(),
-            details: {
-              limit: result.current + result.remaining,
+      // Try Redis rate limiter first (server-side only)
+      if (rateLimiters) {
+        const rateLimiter = rateLimiters[operation];
+        if (rateLimiter.isAvailable()) {
+          const result = await rateLimiter.consume(`${operation}:${this.getClientId()}`);
+          
+          if (!result.allowed) {
+            secureLogger.warn('Rate limit exceeded', {
+              operation,
               current: result.current,
+              remaining: result.remaining,
               resetTime: result.resetTime
-            }
-          });
+            });
+
+            // Log rate limit violation for audit
+            auditLogger.logRateLimitViolation({
+              userId: this.getClientId(),
+              action: operation,
+              violationType: 'rate_limit_exceeded',
+              timestamp: Date.now(),
+              details: {
+                limit: result.current + result.remaining,
+                current: result.current,
+                resetTime: result.resetTime
+              }
+            });
+          }
+          
+          return result.allowed;
         }
-        
-        return result.allowed;
       }
       
       // Fallback to in-memory rate limiting
@@ -182,9 +231,12 @@ class CryptoApiService {
    */
   async getRateLimitStatus(operation: 'api' | 'transactions' | 'auth' | 'prices'): Promise<RateLimitResult> {
     try {
-      const rateLimiter = rateLimiters[operation];
-      if (rateLimiter.isAvailable()) {
-        return await rateLimiter.getStatus(`${operation}:${this.getClientId()}`);
+      // Try Redis rate limiter first (server-side only)
+      if (rateLimiters) {
+        const rateLimiter = rateLimiters[operation];
+        if (rateLimiter.isAvailable()) {
+          return await rateLimiter.getStatus(`${operation}:${this.getClientId()}`);
+        }
       }
       
       // Fallback to in-memory status
@@ -499,7 +551,7 @@ class CryptoApiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getAuthToken()}`,
+          ...buildHeaders(),
         },
         body: JSON.stringify(request),
       });
@@ -582,7 +634,7 @@ class CryptoApiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getAuthToken()}`,
+          ...buildHeaders(),
         },
         body: JSON.stringify(request),
       });
@@ -683,7 +735,7 @@ class CryptoApiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getAuthToken()}`,
+          ...buildHeaders(),
         },
         body: JSON.stringify(request),
       });
@@ -740,7 +792,7 @@ class CryptoApiService {
 
       const response = await fetch(`/api/transactions/history?walletAddress=${walletAddress}&limit=${limit}`, {
         headers: {
-          'Authorization': `Bearer ${this.getAuthToken()}`,
+          ...buildHeaders(),
         },
       });
 
@@ -776,7 +828,7 @@ class CryptoApiService {
 
       const response = await fetch(`/api/transactions/status/${txHash}`, {
         headers: {
-          'Authorization': `Bearer ${this.getAuthToken()}`,
+          ...buildHeaders(),
         },
       });
 
@@ -845,7 +897,7 @@ class CryptoApiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getAuthToken()}`,
+          ...buildHeaders(),
         },
         body: JSON.stringify({ txHash, walletAddress }),
       });
@@ -1125,12 +1177,6 @@ class CryptoApiService {
     return isValidSolanaAddress(address);
   }
 
-  // Get authentication token
-  private getAuthToken(): string {
-    // In a real implementation, this would get the token from your auth system
-    return localStorage.getItem('auth_token') || '';
-  }
-
   // Reset daily transaction limits (useful for testing or admin operations)
   resetDailyLimits(walletAddress?: string): void {
     try {
@@ -1168,4 +1214,3 @@ class CryptoApiService {
 export const cryptoApiService = new CryptoApiService();
 
 // Export types for use in components
-// Types are already exported as interfaces above

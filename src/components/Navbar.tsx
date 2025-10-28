@@ -6,13 +6,14 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import WalletConnectButton from './WalletConnectButton';
-import { Menu, Home, Brain, Coins, Store } from 'lucide-react';
+import { Menu, Home, Brain, Coins, Store, ShoppingBagIcon } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'AI Tutor', href: '/ai-tutor', icon: Brain },
   { name: 'Savings Pools', href: '/pools', icon: Coins },
   { name: 'Campus Store', href: '/stores', icon: Store },
+  { name: 'Portfolio', href: '/portfolio', icon: ShoppingBagIcon },
 ];
 
 export function Navbar() {

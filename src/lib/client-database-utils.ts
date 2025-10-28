@@ -15,11 +15,13 @@ export function setPrivyToken(token: string | null): void {
 }
 
 // Helper function to build headers with optional Privy token
-function buildHeaders(baseHeaders: Record<string, string> = {}): Record<string, string> {
+export function buildHeaders(baseHeaders: Record<string, string> = {}): Record<string, string> {
   const headers = { ...baseHeaders }
   
   if (currentPrivyToken) {
     headers['x-privy-token'] = currentPrivyToken
+    // Add Authorization header for Bearer token authentication
+    headers['Authorization'] = `Bearer ${currentPrivyToken}`
   }
   
   return headers
@@ -118,6 +120,14 @@ export class ClientUserProfileManager {
 
   static async upsertProfile(profile: UserProfileInsert): Promise<UserProfile> {
     try {
+      secureLogger.info('Attempting to upsert user profile', {
+        userId: secureLogUtils.maskUserId(profile.user_id),
+        walletAddress: profile.wallet_address ? secureLogUtils.maskWalletAddress(profile.wallet_address) : 'none',
+        hasDisplayName: !!profile.display_name,
+        hasEmail: !!profile.email,
+        timestamp: new Date().toISOString()
+      })
+
       const response = await fetch('/api/user/profile', {
         method: 'POST',
         headers: buildHeaders({
@@ -126,7 +136,18 @@ export class ClientUserProfileManager {
         body: JSON.stringify(profile),
       })
 
+      secureLogger.info('Profile API response received', {
+        status: response.status,
+        statusText: response.statusText,
+        userId: secureLogUtils.maskUserId(profile.user_id)
+      })
+
       const data = await handleApiResponse(response, 'upsert user profile')
+      
+      secureLogger.info('Profile upsert successful', {
+        userId: secureLogUtils.maskUserId(profile.user_id)
+      })
+      
       return data.profile
     } catch (error) {
       secureLogger.error('Error upserting user profile', {

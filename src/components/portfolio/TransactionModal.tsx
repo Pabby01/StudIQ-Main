@@ -8,10 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TransactionResponse } from '@/lib/client-crypto-api-service';
-import { Loader2, Send, Download, Upload, AlertCircle } from 'lucide-react';
-import { clientCryptoApiService } from '@/lib/client-crypto-api-service';
+import { X, Send, ArrowDownToLine, ArrowUpFromLine, Loader2, CheckCircle, Copy, Check, Download, Upload, AlertCircle, Wallet } from 'lucide-react';
+import { walletDataService } from '@/lib/wallet-data';
 import { secureLogger } from '@/lib/secure-logger';
+import { usePrivy } from '@privy-io/react-auth';
+import { PublicKey } from '@solana/web3.js';
+import { useWalletConnection, useWalletTransactions } from '@/contexts/SolflareWalletContext';
+import { SolflareWalletButton } from '@/components/SolflareWalletButton';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -19,7 +22,7 @@ interface TransactionModalProps {
   type: 'send' | 'receive' | 'deposit' | 'withdraw';
   walletAddress: string;
   availableTokens: string[];
-  onTransactionComplete: (transaction: TransactionResponse) => void;
+  onTransactionComplete: () => void;
 }
 
 export function TransactionModal({
@@ -30,15 +33,22 @@ export function TransactionModal({
   availableTokens,
   onTransactionComplete,
 }: TransactionModalProps) {
+  const { user } = usePrivy();
+  const { isConnected: isSolflareConnected, publicKey: solflarePublicKey, balance: solflareBalance } = useWalletConnection();
+  const { sendTransaction: sendSolflareTransaction, isTransactionPending } = useWalletTransactions();
+  
   const [formData, setFormData] = useState({
     toAddress: '',
     amount: '',
     token: 'SOL',
-    twoFactorCode: '',
+    memo: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<'form' | 'confirm' | 'processing' | 'complete'>('form');
+  const [transactionSignature, setTransactionSignature] = useState<string>('');
+  const [copied, setCopied] = useState(false);
+  const [useSolflare, setUseSolflare] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +61,11 @@ export function TransactionModal({
         return;
       }
 
-      if (!clientCryptoApiService.validateWalletAddress(formData.toAddress, 'solana')) {
-        setError('Invalid wallet address format');
+      // Validate Solana address format
+      try {
+        new PublicKey(formData.toAddress);
+      } catch {
+        setError('Invalid Solana wallet address format');
         return;
       }
 
@@ -70,36 +83,63 @@ export function TransactionModal({
     setStep('processing');
 
     try {
-      let result;
       const amount = parseFloat(formData.amount);
 
       switch (type) {
         case 'send':
-          result = await clientCryptoApiService.sendTransaction({
-            toAddress: formData.toAddress,
-            amount,
-            token: formData.token,
-            walletAddress,
-            twoFactorCode: formData.twoFactorCode,
-          });
+          let sendResult;
+          if (useSolflare && isSolflareConnected) {
+            // Use Solflare wallet for transaction
+            sendResult = await sendSolflareTransaction({
+              recipientAddress: formData.toAddress,
+              amount,
+              memo: formData.memo || undefined
+            });
+          } else {
+            // Use traditional wallet service
+            sendResult = await walletDataService.sendTransaction(
+              walletAddress,
+              formData.toAddress,
+              amount,
+              formData.token === 'SOL' ? undefined : formData.token
+            );
+          }
+          
+          setTransactionSignature(sendResult.signature);
+          
+          // Monitor transaction confirmation
+          await walletDataService.monitorTransaction(sendResult.signature);
           break;
 
         case 'deposit':
-          result = await clientCryptoApiService.processDeposit({
-            token: formData.token,
-            amount,
-            walletAddress,
-          });
-          break;
+          // For deposit, we just show the wallet address (similar to receive)
+          setStep('complete');
+          setIsLoading(false);
+          return;
 
         case 'withdraw':
-          result = await clientCryptoApiService.processWithdrawal({
-            toAddress: formData.toAddress,
-            amount,
-            token: formData.token,
-            walletAddress,
-            twoFactorCode: formData.twoFactorCode,
-          });
+          let withdrawResult;
+          if (useSolflare && isSolflareConnected) {
+            // Use Solflare wallet for transaction
+            withdrawResult = await sendSolflareTransaction({
+              recipientAddress: formData.toAddress,
+              amount,
+              memo: formData.memo || undefined
+            });
+          } else {
+            // Use traditional wallet service
+            withdrawResult = await walletDataService.sendTransaction(
+              walletAddress,
+              formData.toAddress,
+              amount,
+              formData.token === 'SOL' ? undefined : formData.token
+            );
+          }
+          
+          setTransactionSignature(withdrawResult.signature);
+          
+          // Monitor transaction confirmation
+          await walletDataService.monitorTransaction(withdrawResult.signature);
           break;
 
         case 'receive':
@@ -110,12 +150,14 @@ export function TransactionModal({
       }
 
       setStep('complete');
-      onTransactionComplete(result);
+      onTransactionComplete();
       secureLogger.info('Transaction completed successfully', {
         type,
         token: formData.token,
         amount,
-        walletAddress: walletAddress.slice(0, 8) + '...', // Log only first 8 chars for privacy
+        signature: transactionSignature,
+        walletAddress: (useSolflare ? solflarePublicKey?.toString() : walletAddress)?.slice(0, 8) + '...', // Log only first 8 chars for privacy
+        usedSolflare: useSolflare
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transaction failed');
@@ -127,10 +169,21 @@ export function TransactionModal({
   };
 
   const handleClose = () => {
-    setFormData({ toAddress: '', amount: '', token: 'SOL', twoFactorCode: '' });
+    setFormData({ toAddress: '', amount: '', token: 'SOL', memo: '' });
     setError(null);
     setStep('form');
+    setTransactionSignature('');
+    setCopied(false);
+    setUseSolflare(false);
     onClose();
+  };
+
+  const copySignature = async () => {
+    if (transactionSignature) {
+      await navigator.clipboard.writeText(transactionSignature);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const getModalTitle = () => {
@@ -175,12 +228,65 @@ export function TransactionModal({
               </Alert>
             )}
 
+            {/* Solflare Wallet Integration */}
+            {(type === 'send' || type === 'withdraw') && (
+              <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Wallet Method</Label>
+                  {isSolflareConnected && (
+                    <div className="flex items-center gap-1 text-xs text-green-600">
+                      <Wallet className="h-3 w-3" />
+                      Solflare Ready
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="traditional"
+                      name="walletMethod"
+                      checked={!useSolflare}
+                      onChange={() => setUseSolflare(false)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <Label htmlFor="traditional" className="text-sm">
+                      Traditional Wallet ({walletAddress.slice(0, 8)}...)
+                    </Label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="solflare"
+                      name="walletMethod"
+                      checked={useSolflare}
+                      onChange={() => setUseSolflare(true)}
+                      disabled={!isSolflareConnected}
+                      className="w-4 h-4 text-blue-600 disabled:opacity-50"
+                    />
+                    <Label htmlFor="solflare" className={`text-sm ${!isSolflareConnected ? 'text-gray-400' : ''}`}>
+                      Solflare Wallet {isSolflareConnected ? `(${solflareBalance.toFixed(4)} SOL)` : '(Not Connected)'}
+                    </Label>
+                  </div>
+                </div>
+
+                {!isSolflareConnected && (
+                  <div className="mt-2">
+                    <SolflareWalletButton size="sm" variant="outline" showBalance={false} showAddress={false} />
+                  </div>
+                )}
+              </div>
+            )}
+
             {type !== 'receive' && (
               <div className="space-y-2">
                 <Label htmlFor="token">Token</Label>
                 <Select
                   value={formData.token}
                   onValueChange={(value) => setFormData({ ...formData, token: value })}
+                  disabled={useSolflare} // Solflare integration currently supports SOL only
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -193,6 +299,11 @@ export function TransactionModal({
                     ))}
                   </SelectContent>
                 </Select>
+                {useSolflare && formData.token !== 'SOL' && (
+                  <p className="text-xs text-amber-600">
+                    ⚠️ Solflare integration currently supports SOL only
+                  </p>
+                )}
               </div>
             )}
 
@@ -212,26 +323,52 @@ export function TransactionModal({
             {type !== 'receive' && (
               <div className="space-y-2">
                 <Label htmlFor="amount">Amount</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.000001"
-                  placeholder="0.00"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.000001"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    required
+                    max={useSolflare ? solflareBalance : undefined}
+                  />
+                  {useSolflare && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, amount: Math.max(0, solflareBalance - 0.000005).toString() })}
+                      className="absolute right-1 top-1 h-8 px-2 text-xs"
+                    >
+                      MAX
+                    </Button>
+                  )}
+                </div>
+                {useSolflare && (
+                  <p className="text-xs text-gray-600">
+                    Available: {solflareBalance.toFixed(6)} SOL (excluding ~0.000005 SOL for fees)
+                  </p>
+                )}
+                {useSolflare && formData.amount && parseFloat(formData.amount) > solflareBalance && (
+                  <p className="text-xs text-red-600">
+                    ⚠️ Amount exceeds available balance
+                  </p>
+                )}
               </div>
             )}
 
             {(type === 'send' || type === 'withdraw') && (
               <div className="space-y-2">
-                <Label htmlFor="twoFactorCode">2FA Code (Optional)</Label>
+                <Label htmlFor="memo">Memo (Optional)</Label>
                 <Input
-                  id="twoFactorCode"
-                  placeholder="Enter 2FA code"
-                  value={formData.twoFactorCode}
-                  onChange={(e) => setFormData({ ...formData, twoFactorCode: e.target.value })}
+                  id="memo"
+                  type="text"
+                  placeholder="Add a note for this transaction"
+                  value={formData.memo}
+                  onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                  maxLength={100}
                 />
               </div>
             )}
@@ -257,7 +394,15 @@ export function TransactionModal({
               >
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1">
+              <Button 
+                type="submit" 
+                className="flex-1"
+                disabled={
+                  !!(useSolflare && !isSolflareConnected) ||
+                  !!(useSolflare && formData.token !== 'SOL') ||
+                  !!(useSolflare && formData.amount && parseFloat(formData.amount) > solflareBalance)
+                }
+              >
                 {getSubmitButtonText()}
               </Button>
             </div>
@@ -278,6 +423,12 @@ export function TransactionModal({
               <div className="flex justify-between">
                 <span className="text-gray-600">Type:</span>
                 <span className="font-medium capitalize">{type}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Wallet:</span>
+                <span className="font-medium">
+                  {useSolflare ? 'Solflare' : 'Traditional'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Token:</span>
@@ -306,8 +457,19 @@ export function TransactionModal({
               >
                 Back
               </Button>
-              <Button onClick={handleConfirm} className="flex-1">
-                Confirm
+              <Button 
+                onClick={handleConfirm} 
+                className="flex-1"
+                disabled={isLoading || (useSolflare && isTransactionPending)}
+              >
+                {(isLoading || (useSolflare && isTransactionPending)) ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    {useSolflare ? 'Signing...' : 'Processing...'}
+                  </>
+                ) : (
+                  'Confirm'
+                )}
               </Button>
             </div>
           </div>
@@ -325,13 +487,45 @@ export function TransactionModal({
 
         {step === 'complete' && (
           <div className="text-center space-y-4">
-            <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <Send className="h-6 w-6 text-green-600" />
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <h3 className="text-lg font-semibold">Transaction Complete!</h3>
-            <p className="text-gray-600">
-              Your transaction has been processed successfully.
-            </p>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {type === 'receive' || type === 'deposit' ? 'Ready to Receive' : 'Transaction Complete'}
+              </h3>
+              <p className="text-gray-600 mt-2">
+                {type === 'receive' || type === 'deposit'
+                  ? 'Share your wallet address to receive funds'
+                  : 'Your transaction has been processed successfully'}
+              </p>
+            </div>
+            
+            {transactionSignature && (type === 'send' || type === 'withdraw') && (
+              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                <Label className="text-sm font-medium text-gray-700">Transaction Signature</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    value={transactionSignature}
+                    readOnly
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={copySignature}
+                    className="shrink-0"
+                  >
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  You can use this signature to track your transaction on Solana Explorer
+                </p>
+              </div>
+            )}
+            
             <Button onClick={handleClose} className="w-full">
               Done
             </Button>

@@ -38,8 +38,13 @@ export const getSupabaseAdmin = (): SupabaseClient<Database> => {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseServiceKey) {
-      secureLogger.security('Service configuration error detected')
-      throw new Error('Service configuration error. Please contact support.')
+      secureLogger.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY environment variable is missing', {
+        error: 'Missing required environment variable',
+        variable: 'SUPABASE_SERVICE_ROLE_KEY',
+        impact: 'Database writes will fail, new users cannot be created',
+        solution: 'Set SUPABASE_SERVICE_ROLE_KEY in .env.local file'
+      })
+      throw new Error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY environment variable is missing. New users cannot be created without this. Please set it in your .env.local file.')
     }
 
     _supabaseAdmin = createClient<Database>(

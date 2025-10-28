@@ -28,7 +28,7 @@ import {
   XCircle,
   AlertCircle
 } from 'lucide-react';
-import { clientCryptoApiService, TransactionResponse } from '@/lib/client-crypto-api-service';
+import { walletDataService, Transaction } from '@/lib/wallet-data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -46,7 +46,7 @@ interface TransactionFilters {
 }
 
 export function TransactionHistory({ walletAddress, className }: TransactionHistoryProps) {
-  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<TransactionFilters>({
@@ -70,7 +70,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
       setIsLoading(true);
       setError(null);
       
-      const history = await clientCryptoApiService.getTransactionHistory(walletAddress, 100);
+      const history = await walletDataService.getWalletTransactions(walletAddress, 100);
       setTransactions(history);
     } catch (err) {
       setError('Failed to load transaction history');
@@ -87,8 +87,8 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(tx => 
-        tx.toAddress.toLowerCase().includes(searchLower) ||
-        tx.fromAddress.toLowerCase().includes(searchLower) ||
+        (tx.to?.toLowerCase().includes(searchLower)) ||
+        (tx.from?.toLowerCase().includes(searchLower)) ||
         tx.signature.toLowerCase().includes(searchLower)
       );
     }
@@ -106,7 +106,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
     }
 
     if (filters.token !== 'all') {
-      filtered = filtered.filter(tx => tx.token === filters.token);
+      filtered = filtered.filter(tx => tx.symbol === filters.token);
     }
 
     if (filters.dateRange !== 'all') {
@@ -166,7 +166,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
-  const getTransactionIcon = (transaction: TransactionResponse) => {
+  const getTransactionIcon = (transaction: Transaction) => {
     const isOutgoing = transaction.amount < 0;
     
     if (isOutgoing) {
@@ -197,7 +197,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
     );
   };
 
-  const getTransactionType = (transaction: TransactionResponse) => {
+  const getTransactionType = (transaction: Transaction) => {
     if (transaction.amount < 0) return 'Send';
     if (transaction.amount > 0) return 'Receive';
     return 'Unknown';
@@ -335,7 +335,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
                     <TableHead>Amount</TableHead>
                     <TableHead>Token</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Fee</TableHead>
+                    <TableHead className="text-right">USD Value</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -358,11 +358,11 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{transaction.token}</Badge>
+                        <Badge variant="outline">{transaction.symbol}</Badge>
                       </TableCell>
                       <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                       <TableCell className="text-right text-sm text-gray-600">
-                        {transaction.fee.toFixed(6)}
+                        ${transaction.usdValue.toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))}

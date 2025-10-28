@@ -57,14 +57,22 @@ export async function GET(request: NextRequest) {
       }, { status: 429 });
     }
 
+    // Prepare headers with optional API key
+    const apiKey = process.env.NEXT_PUBLIC_CRYPTO_API_KEY;
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'User-Agent': 'StudIQ/1.0',
+    };
+    
+    if (apiKey) {
+      headers['x-cg-demo-api-key'] = apiKey;
+    }
+
     // Make the actual API call to CoinGecko
     const coingeckoUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=${vs_currencies}&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`;
     
     const response = await fetch(coingeckoUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'StudIQ/1.0',
-      },
+      headers,
     });
 
     if (!response.ok) {

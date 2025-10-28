@@ -76,19 +76,24 @@ export async function GET(request: NextRequest) {
 
     const coinId = symbolToIdMap[symbol.toUpperCase()] || symbol.toLowerCase();
 
+    // Prepare headers with optional API key
+    const apiKey = process.env.NEXT_PUBLIC_CRYPTO_API_KEY;
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'User-Agent': 'StudIQ/1.0',
+    };
+    
+    if (apiKey) {
+      headers['x-cg-demo-api-key'] = apiKey;
+    }
+
     // Make the actual API calls to CoinGecko
     const [coinResponse, chartResponse] = await Promise.all([
-      fetch(`https://api.coingecko.com/api/v3/coins/${coinId}`, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'StudIQ/1.0',
-        },
+      fetch(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=true`, {
+        headers,
       }),
       fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=7`, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'StudIQ/1.0',
-        },
+        headers,
       }),
     ]);
 

@@ -119,13 +119,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate user authentication with secure RLS context
+    secureLogger.info('Starting profile POST authentication', {
+      userId: profileData.user_id?.startsWith('did:privy:') ? '[PRIVY_ID]' : '[USER_ID]',
+      method: request.method,
+      timestamp: new Date().toISOString()
+    })
+
     const authResult = await validateUserAuthWithRLS(request, profileData.user_id, 'write')
     if (!authResult.success) {
+      secureLogger.warn('Profile POST authentication failed', {
+        userId: profileData.user_id?.startsWith('did:privy:') ? '[PRIVY_ID]' : '[USER_ID]',
+        error: authResult.error,
+        statusCode: authResult.statusCode
+      })
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.statusCode }
       )
     }
+
+    secureLogger.info('Profile POST authentication successful', {
+      userId: profileData.user_id?.startsWith('did:privy:') ? '[PRIVY_ID]' : '[USER_ID]',
+      rlsContextSet: authResult.rlsContextSet
+    })
 
     try {
       // Sanitize and validate input data

@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { secureLogger, secureLogUtils } from './secure-logger';
+import { getHeliusService } from './helius-rpc-service';
+import { solflareWalletService, SolflareWalletService } from './solflare-wallet-service';
 import type { ParsedTransactionWithMeta } from '@solana/web3.js';
+import type { 
+  WalletBalance as HeliusWalletBalance, 
+  TransactionData as HeliusTransactionData 
+} from './helius-rpc-service';
 
 // Types for wallet data
 export interface TokenBalance {
@@ -154,73 +160,28 @@ class WalletDataService {
       // Guard against non-Solana addresses (e.g., Ethereum '0x' hex)
       if (walletAddress.startsWith('0x')) {
         secureLogger.warn('Ethereum address used for Solana balance; returning fallback.');
-        return this.getMockWalletBalance();
-      }
-      const publicKey = new PublicKey(walletAddress);
-      
-      // Get SOL balance
-      const solBalance = await this.connection.getBalance(publicKey);
-      const solAmount = solBalance / LAMPORTS_PER_SOL;
-      
-      // Get SOL price
-      const solPrice = await this.getSolPrice();
-      
-      // Get SPL token accounts
-      const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(
-        publicKey,
-        { programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA') }
-      );
-
-      const tokens: TokenBalance[] = [];
-      const tokenMints: string[] = [];
-
-      // Process token accounts
-      for (const account of tokenAccounts.value) {
-        const tokenInfo = account.account.data.parsed.info;
-        const mint = tokenInfo.mint;
-        const balance = tokenInfo.tokenAmount.uiAmount || 0;
-        
-        if (balance > 0) {
-          tokenMints.push(mint);
-          
-          // Get token metadata (simplified - in production use Metaplex or similar)
-          const tokenData = this.getTokenMetadata(mint);
-          
-          tokens.push({
-            mint,
-            symbol: tokenData.symbol,
-            name: tokenData.name,
-            balance: tokenInfo.tokenAmount.amount,
-            decimals: tokenInfo.tokenAmount.decimals,
-            uiAmount: balance,
-            usdValue: 0, // Will be calculated after getting prices
-            logoURI: tokenData.logoURI,
-          });
-        }
+        throw new Error('Invalid Solana wallet address format');
       }
 
-      // Get token prices and calculate USD values
-      const tokenPrices = await this.getTokenPrices(tokenMints);
+      // Use Helius RPC service for real blockchain data
+      const heliusService = getHeliusService();
+      const realBalance = await heliusService.getWalletBalance(walletAddress);
       
-      tokens.forEach(token => {
-        const price = tokenPrices.get(token.mint) || 0;
-        token.usdValue = token.uiAmount * price;
+      secureLogger.info('Retrieved real wallet balance', {
+        walletAddress: walletAddress.slice(0, 8) + '...',
+        solBalance: realBalance.solBalance,
+        tokenCount: realBalance.tokens.length,
+        totalUsdValue: realBalance.totalUsdValue,
       });
 
-      const totalTokenValue = tokens.reduce((sum, token) => sum + token.usdValue, 0);
-      const totalUsdValue = (solAmount * solPrice) + totalTokenValue;
+      return realBalance;
 
-      return {
-        solBalance: solAmount,
-        totalUsdValue,
-        tokens,
-        lastUpdated: new Date(),
-      };
     } catch (error) {
       secureLogger.error('Failed to fetch wallet balance', error);
       
-      // Return mock data as fallback
-      return this.getMockWalletBalance();
+      // For mainnet, we should not fall back to mock data
+      // Instead, throw the error to be handled by the calling component
+      throw new Error(`Failed to fetch wallet balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -256,66 +217,40 @@ class WalletDataService {
       // Guard against non-Solana addresses (e.g., Ethereum '0x' hex)
       if (walletAddress.startsWith('0x')) {
         secureLogger.warn('Ethereum address used for Solana transactions; returning fallback.');
-        return this.getMockTransactions();
+        throw new Error('Invalid Solana wallet address format');
       }
-      const publicKey = new PublicKey(walletAddress);
+
+      // Use Helius RPC service for real transaction data
+      const heliusService = getHeliusService();
+      const realTransactions = await heliusService.getTransactionHistory(walletAddress, limit);
       
-      // Get recent transaction signatures
-      const signatures = await this.connection.getSignaturesForAddress(
-        publicKey,
-        { limit }
-      );
+      // Convert Helius transaction format to our format
+      const transactions: Transaction[] = realTransactions.map(tx => ({
+        signature: tx.signature,
+        timestamp: tx.timestamp,
+        type: tx.type,
+        amount: tx.amount,
+        symbol: tx.symbol,
+        tokenSymbol: tx.tokenSymbol,
+        usdValue: tx.usdValue,
+        from: tx.from,
+        to: tx.to,
+        counterparty: tx.counterparty,
+        status: tx.status,
+      }));
 
-      const transactions: Transaction[] = [];
-
-      // Process each transaction (simplified)
-      for (const sig of signatures.slice(0, 5)) { // Limit to 5 for performance
-        try {
-          const tx = await this.connection.getParsedTransaction(sig.signature);
-          
-          if (tx && tx.meta && !tx.meta.err) {
-            const transaction = this.parseTransaction(tx);
-            if (transaction) {
-              transactions.push(transaction);
-            }
-          }
-        } catch (error) {
-          secureLogger.error('Failed to parse transaction', error);
-        }
-      }
+      secureLogger.info('Retrieved real transaction history', {
+        walletAddress: walletAddress.slice(0, 8) + '...',
+        transactionCount: transactions.length,
+      });
 
       return transactions;
+
     } catch (error) {
       secureLogger.error('Failed to fetch wallet transactions', error);
-      return this.getMockTransactions();
-    }
-  }
-
-  // Parse transaction data (simplified)
-  private parseTransaction(tx: ParsedTransactionWithMeta): Transaction | null {
-    try {
-      const signature = tx.transaction.signatures[0];
-      const blockTimeSec = tx.blockTime ?? Math.floor(Date.now() / 1000);
-      const timestamp = new Date(blockTimeSec * 1000);
       
-      // Simplified transaction parsing
-      // In production, you'd need more sophisticated parsing
-      const preBalance = tx.meta?.preBalances?.[0] ?? 0;
-      const postBalance = tx.meta?.postBalances?.[0] ?? 0;
-      const balanceChange = (postBalance - preBalance) / LAMPORTS_PER_SOL;
-      
-      return {
-        signature,
-        timestamp,
-        type: balanceChange > 0 ? 'receive' : 'send',
-        amount: Math.abs(balanceChange),
-        symbol: 'SOL',
-        usdValue: 0, // Would calculate based on SOL price at transaction time
-        status: 'confirmed',
-      };
-    } catch (error) {
-      secureLogger.error('Failed to parse transaction', error);
-      return null;
+      // For mainnet, we should not fall back to mock data
+      throw new Error(`Failed to fetch wallet transactions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -327,13 +262,15 @@ class WalletDataService {
         this.getWalletTransactions(walletAddress),
       ]);
 
-      // Calculate performance (mock data for now)
-      const performance = {
-        dayChange: 12.45,
-        dayChangePercent: 5.2,
-        weekChange: -8.32,
-        weekChangePercent: -3.1,
-      };
+      // Use Helius service to get real performance data
+      const heliusService = getHeliusService();
+      const performance = await heliusService.getPortfolioPerformance(walletAddress);
+
+      secureLogger.info('Retrieved real portfolio data', {
+        walletAddress: walletAddress.slice(0, 8) + '...',
+        totalValue: balance.totalUsdValue,
+        transactionCount: transactions.length,
+      });
 
       return {
         balance,
@@ -342,64 +279,198 @@ class WalletDataService {
       };
     } catch (error) {
       secureLogger.error('Failed to fetch wallet portfolio', error);
-      return this.getMockPortfolio();
+      
+      // For mainnet, we should not fall back to mock data
+      throw new Error(`Failed to fetch wallet portfolio: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  // Fallback mock data
-  private getMockWalletBalance(): WalletBalance {
+  // Send transaction functionality using Solflare wallet
+  async sendTransaction(
+    fromWallet: string,
+    toWallet: string,
+    amount: number,
+    tokenMint?: string,
+    memo?: string
+  ): Promise<{ signature: string; status: string }> {
+    try {
+      // Check if Solflare wallet is connected
+      if (!solflareWalletService.isConnected()) {
+        throw new Error('Solflare wallet is not connected. Please connect your wallet first.');
+      }
+
+      // Verify the fromWallet matches the connected wallet
+      const connectedPublicKey = solflareWalletService.getPublicKey();
+      if (!connectedPublicKey || connectedPublicKey.toString() !== fromWallet) {
+        throw new Error('Transaction can only be sent from the connected wallet address.');
+      }
+
+      // For now, only support SOL transfers (token transfers can be added later)
+      if (tokenMint && tokenMint !== 'So11111111111111111111111111111111111111112') {
+        throw new Error('Token transfers are not yet supported. Only SOL transfers are currently available.');
+      }
+
+      // Validate recipient address
+      if (!SolflareWalletService.isValidAddress(toWallet)) {
+        throw new Error('Invalid recipient wallet address.');
+      }
+
+      // Validate amount
+      if (amount <= 0) {
+        throw new Error('Transaction amount must be greater than 0.');
+      }
+
+      // Check if sender has sufficient balance
+      const currentBalance = solflareWalletService.getBalance();
+      if (amount > currentBalance) {
+        throw new Error(`Insufficient balance. Available: ${currentBalance} SOL, Required: ${amount} SOL`);
+      }
+
+      // Send transaction using Solflare wallet service
+      const result = await solflareWalletService.sendTransaction({
+        recipientAddress: toWallet,
+        amount,
+        memo
+      });
+
+      secureLogger.info('Transaction sent successfully', {
+        signature: result.signature,
+        from: fromWallet,
+        to: toWallet,
+        amount,
+        success: result.success
+      });
+
+      return {
+        signature: result.signature,
+        status: result.success ? 'confirmed' : 'failed'
+      };
+
+    } catch (error) {
+      secureLogger.error('Failed to send transaction', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        from: fromWallet,
+        to: toWallet,
+        amount
+      });
+      throw new Error(`Failed to send transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Monitor transaction confirmation
+  async monitorTransaction(signature: string): Promise<{ status: string; confirmations: number }> {
+    try {
+      const heliusService = getHeliusService();
+      const result = await heliusService.monitorTransaction(signature);
+      
+      secureLogger.info('Transaction status checked', {
+        signature: signature.slice(0, 8) + '...',
+        status: result.status,
+        confirmations: result.confirmations,
+      });
+      
+      return result;
+    } catch (error) {
+      secureLogger.error('Failed to monitor transaction', error);
+      throw new Error(`Failed to monitor transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Solflare wallet integration methods
+  
+  /**
+   * Get wallet portfolio using connected Solflare wallet
+   */
+  async getSolflareWalletPortfolio(): Promise<WalletPortfolio> {
+    try {
+      if (!solflareWalletService.isConnected()) {
+        throw new Error('Solflare wallet is not connected');
+      }
+
+      const publicKey = solflareWalletService.getPublicKey();
+      if (!publicKey) {
+        throw new Error('No public key available from Solflare wallet');
+      }
+
+      // Get portfolio data for the connected wallet
+      return await this.getWalletPortfolio(publicKey.toString());
+    } catch (error) {
+      secureLogger.error('Failed to get Solflare wallet portfolio', error);
+      throw new Error(`Failed to get Solflare wallet portfolio: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get current Solflare wallet connection state
+   */
+  getSolflareConnectionState() {
     return {
-      solBalance: 2.45,
-      totalUsdValue: 245.32,
-      tokens: [
-        {
-          mint: COMMON_TOKENS.USDC,
-          symbol: 'USDC',
-          name: 'USD Coin',
-          balance: 156780000,
-          decimals: 6,
-          uiAmount: 156.78,
-          usdValue: 156.78,
-        },
-      ],
-      lastUpdated: new Date(),
+      isConnected: solflareWalletService.isConnected(),
+      publicKey: solflareWalletService.getPublicKey()?.toString() || null,
+      balance: solflareWalletService.getBalance(),
+      network: solflareWalletService.getNetwork()
     };
   }
 
-  private getMockTransactions(): Transaction[] {
-    return [
-      {
-        signature: '5j7s8K9mN2pQ3rT4uV5wX6yZ7a8B9c0D1e2F3g4H5i6J7k8L9m0N1o2P3q4R5s6T',
-        timestamp: new Date(Date.now() - 3600000), // 1 hour ago
-        type: 'receive',
-        amount: 0.5,
-        symbol: 'SOL',
-        usdValue: 45.50,
-        status: 'confirmed',
-      },
-      {
-        signature: '2a3B4c5D6e7F8g9H0i1J2k3L4m5N6o7P8q9R0s1T2u3V4w5X6y7Z8a9B0c1D2e3F',
-        timestamp: new Date(Date.now() - 7200000), // 2 hours ago
-        type: 'send',
-        amount: 50.0,
-        symbol: 'USDC',
-        usdValue: 50.0,
-        status: 'confirmed',
-      },
-    ];
+  /**
+   * Connect to Solflare wallet
+   */
+  async connectSolflareWallet() {
+    try {
+      const connectionState = await solflareWalletService.connect();
+      secureLogger.info('Solflare wallet connected', {
+        publicKey: connectionState.publicKey?.toString(),
+        balance: connectionState.balance
+      });
+      return connectionState;
+    } catch (error) {
+      secureLogger.error('Failed to connect Solflare wallet', error);
+      throw error;
+    }
   }
 
-  private getMockPortfolio(): WalletPortfolio {
-    return {
-      balance: this.getMockWalletBalance(),
-      transactions: this.getMockTransactions(),
-      performance: {
-        dayChange: 12.45,
-        dayChangePercent: 5.2,
-        weekChange: -8.32,
-        weekChangePercent: -3.1,
-      },
-    };
+  /**
+   * Disconnect from Solflare wallet
+   */
+  async disconnectSolflareWallet() {
+    try {
+      await solflareWalletService.disconnect();
+      secureLogger.info('Solflare wallet disconnected');
+    } catch (error) {
+      secureLogger.error('Failed to disconnect Solflare wallet', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send SOL using connected Solflare wallet
+   */
+  async sendSolflareTransaction(
+    toWallet: string,
+    amount: number,
+    memo?: string
+  ): Promise<{ signature: string; status: string }> {
+    try {
+      if (!solflareWalletService.isConnected()) {
+        throw new Error('Solflare wallet is not connected');
+      }
+
+      const publicKey = solflareWalletService.getPublicKey();
+      if (!publicKey) {
+        throw new Error('No public key available from Solflare wallet');
+      }
+
+      return await this.sendTransaction(
+        publicKey.toString(),
+        toWallet,
+        amount,
+        undefined, // tokenMint - SOL only for now
+        memo
+      );
+    } catch (error) {
+      secureLogger.error('Failed to send Solflare transaction', error);
+      throw error;
+    }
   }
 }
 

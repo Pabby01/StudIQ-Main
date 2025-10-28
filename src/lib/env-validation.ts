@@ -21,6 +21,7 @@ class EnvironmentValidator {
     'SUPABASE_SERVICE_ROLE_KEY',
     'NEXT_PUBLIC_ENCRYPTION_KEY',
     'NEXT_PUBLIC_SOLANA_RPC_URL',
+    'NEXT_PUBLIC_HELIUS_API_KEY',
     'OPENAI_API_KEY',
   ];
 
@@ -41,6 +42,7 @@ class EnvironmentValidator {
   private readonly securityRequirements = {
     'NEXT_PUBLIC_ENCRYPTION_KEY': (value: string) => value.length >= 32,
     'SUPABASE_SERVICE_ROLE_KEY': (value: string) => value.startsWith('eyJ') && value.length > 50,
+    'NEXT_PUBLIC_HELIUS_API_KEY': (value: string) => value.length >= 32 && !value.includes('demo'),
     'OPENAI_API_KEY': (value: string) => value.startsWith('sk-') && value.length > 20,
     'REDIS_URL': (value: string) => value.startsWith('redis://') || value.startsWith('rediss://'),
     'UPSTASH_REDIS_URL': (value: string) => value.includes('upstash.io') && value.startsWith('https://'),
@@ -178,6 +180,7 @@ class EnvironmentValidator {
       'SUPABASE_SERVICE_ROLE_KEY': 'Supabase service role key for admin operations',
       'NEXT_PUBLIC_ENCRYPTION_KEY': 'Encryption key for sensitive data (minimum 32 characters)',
       'NEXT_PUBLIC_SOLANA_RPC_URL': 'Primary Solana RPC endpoint for blockchain operations',
+      'NEXT_PUBLIC_HELIUS_API_KEY': 'Helius API key for enhanced Solana RPC operations and indexing',
       'OPENAI_API_KEY': 'OpenAI API key for AI tutor functionality',
       'NEXT_PUBLIC_COINGECKO_API_URL': 'CoinGecko API base URL for price data',
       'NEXT_PUBLIC_JUPITER_API_URL': 'Jupiter API base URL for token prices',

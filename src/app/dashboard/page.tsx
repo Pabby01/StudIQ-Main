@@ -21,17 +21,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [walletBalance, setWalletBalance] = useState<any>(null);
 
-  const {
-    profile: userProfile,
-    stats: userStats,
-    preferences: userPreferences,
-    transactions,
-    isLoading: userDataLoading,
-    error: userDataError,
-    refreshData,
-    updateProfile,
-    updatePreferences
-  } = useUserData();
+  console.log('DashboardPage: Privy authentication state:', { user, authenticated });
 
   // Wrap the dashboard content with AuthWrapper to handle authentication and onboarding
   return (

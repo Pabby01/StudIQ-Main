@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudIQ Authentication Flow Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .log-entry {
+            font-family: monospace;
+            font-size: 12px;
+            margin: 2px 0;
+            padding: 5px;
+            background-color: #f8f9fa;
+            border-left: 3px solid #007bff;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .test-pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .test-fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 StudIQ Authentication Flow Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Overview</h2>
+        <p>This manual test verifies that the authentication flow fixes are working correctly:</p>
+        <ul>
+            <li><strong>New Privy User Creation:</strong> Tests that new Privy users can create profiles without existing Supabase accounts</li>
+            <li><strong>Token Validation:</strong> Verifies Privy token format validation</li>
+            <li><strong>API Endpoints:</strong> Confirms user profile, stats, and preferences endpoints are accessible</li>
+            <li><strong>User Synchronization:</strong> Tests the user data sync process</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual Test Steps</h2>
+        <ol>
+            <li>Ensure the development server is running: <code>npm run dev</code></li>
+            <li>Open the browser developer console (F12)</li>
+            <li>Navigate to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+            <li>Click the "Connect Wallet" or "Sign In" button</li>
+            <li>Follow the Privy authentication flow</li>
+            <li>Check the console logs for authentication success messages</li>
+            <li>Verify that user data appears in the dashboard</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Automated API Tests</h2>
+        <button onclick="testProfileEndpoint()">Test Profile Endpoint</button>
+        <button onclick="testStatsEndpoint()">Test Stats Endpoint</button>
+        <button onclick="testPreferencesEndpoint()">Test Preferences Endpoint</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+        
+        <div id="test-results"></div>
+        <div id="log-container"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Expected Results</h2>
+        <ul>
+            <li class="success">✅ New Privy users should be able to create profiles</li>
+            <li class="success">✅ Existing users should be able to access their data</li>
+            <li class="success">✅ All API endpoints should return appropriate responses (200 or 404)</li>
+            <li class="success">✅ User data should be synchronized between Privy and Supabase</li>
+            <li class="warning">⚠️  Console should show detailed authentication logs</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Key Fixes Implemented</h2>
+        <ul>
+            <li><strong>Special Profile Creation Handling:</strong> New Privy users can bypass the <code>validateUserAccess</code> check when creating their initial profile</li>
+            <li><strong>Enhanced Token Validation:</strong> Privy tokens are validated for proper JWT format and user ID matching</li>
+            <li><strong>Comprehensive Logging:</strong> Added detailed logging throughout the authentication flow</li>
+            <li><strong>User Synchronization:</strong> Improved the sync process between Privy and Supabase</li>
+        </ul>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = `[${new Date().toISOString()}] ${message}`;
+            logEntry.style.borderLeftColor = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#007bff';
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function showResult(testName, success, message) {
+            const resultsContainer = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${success ? 'test-pass' : 'test-fail'}`;
+            resultDiv.innerHTML = `
+                <strong>${testName}:</strong> 
+                <span class="${success ? 'success' : 'error'}">
+                    ${success ? '✅ PASSED' : '❌ FAILED'}
+                </span>
+                <br>
+                <small>${message}</small>
+            `;
+            resultsContainer.appendChild(resultDiv);
+        }
+
+        function clearLogs() {
+            document.getElementById('log-container').innerHTML = '';
+            document.getElementById('test-results').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+
+        async function testProfileEndpoint() {
+            const testUserId = 'did:privy:test-user-' + Date.now();
+            log(`Testing profile endpoint with user ID: ${testUserId}`);
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/user/profile?user_id=${testUserId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': testUserId,
+                        'x-operation': 'read'
+                    }
+                });
+                
+                log(`Profile endpoint responded with status: ${response.status}`, 
+                    response.status === 200 ? 'success' : 'info');
+                
+                showResult('Profile Endpoint Test', 
+                    [200, 404].includes(response.status), 
+                    `Status: ${response.status} - ${response.status === 404 ? 'User not found (expected for test user)' : 'User found or accessible'}`
+                );
+                
+            } catch (error) {
+                log(`Error testing profile endpoint: ${error.message}`, 'error');
+                showResult('Profile Endpoint Test', false, `Error: ${error.message}`);
+            }
+        }
+
+        async function testStatsEndpoint() {
+            const testUserId = 'did:privy:test-stats-' + Date.now();
+            log(`Testing stats endpoint with user ID: ${testUserId}`);
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/user/stats?user_id=${testUserId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': testUserId,
+                        'x-operation': 'read'
+                    }
+                });
+                
+                log(`Stats endpoint responded with status: ${response.status}`, 
+                    response.status === 200 ? 'success' : 'info');
+                
+                showResult('Stats Endpoint Test', 
+                    [200, 404].includes(response.status), 
+                    `Status: ${response.status}`
+                );
+                
+            } catch (error) {
+                log(`Error testing stats endpoint: ${error.message}`, 'error');
+                showResult('Stats Endpoint Test', false, `Error: ${error.message}`);
+            }
+        }
+
+        async function testPreferencesEndpoint() {
+            const testUserId = 'did:privy:test-prefs-' + Date.now();
+            log(`Testing preferences endpoint with user ID: ${testUserId}`);
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/user/preferences?user_id=${testUserId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': testUserId,
+                        'x-operation': 'read'
+                    }
+                });
+                
+                log(`Preferences endpoint responded with status: ${response.status}`, 
+                    response.status === 200 ? 'success' : 'info');
+                
+                showResult('Preferences Endpoint Test', 
+                    [200, 404].includes(response.status), 
+                    `Status: ${response.status}`
+                );
+                
+            } catch (error) {
+                log(`Error testing preferences endpoint: ${error.message}`, 'error');
+                showResult('Preferences Endpoint Test', false, `Error: ${error.message}`);
+            }
+        }
+
+        // Initialize the test page
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Authentication flow test page loaded', 'info');
+            log('Make sure the development server is running on http://localhost:3000', 'warning');
+            log('Use the buttons above to test API endpoints', 'info');
+        });
+    </script>
+</body>
+</html>

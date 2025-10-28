@@ -1,36 +1,44 @@
-import { useState, useEffect, useCallback } from 'react'
 import { usePrivy } from '@privy-io/react-auth'
+import { useCallback, useEffect, useState } from 'react'
 import { secureLogger } from '@/lib/secure-logger'
+import { buildHeaders } from '@/lib/client-database-utils'
 
-// Interfaces for user data
 export interface UserProfile {
   id: string
-  wallet_address?: string
+  user_id: string
   display_name: string
-  email?: string
-  phone?: string
-  avatar_url?: string
+  email: string
+  wallet_address: string
+  avatar_url: string
+  bio: string
+  level: number
+  total_points: number
   created_at: string
   updated_at: string
 }
 
 export interface UserStats {
+  id: string
   user_id: string
   total_points: number
   total_cashback: number
   level: number
-  streak_days: number
   completed_lessons: number
   portfolio_value: number
+  streak_days: number
   last_activity: string
+  created_at: string
+  updated_at: string
 }
 
 export interface UserPreferences {
+  id: string
   user_id: string
   theme: 'light' | 'dark'
-  notifications: boolean
+  notifications_enabled: boolean
   language: string
-  privacy_level: string
+  currency: string
+  privacy_level: 'public' | 'friends' | 'private'
   created_at: string
   updated_at: string
 }
@@ -61,9 +69,8 @@ export interface UseUserDataReturn extends UserData {
   updatePreferences: (updates: Partial<UserPreferences>) => Promise<void>
 }
 
-// Custom hook for fetching and managing user data
 export function useUserData(): UseUserDataReturn {
-  const { user, authenticated } = usePrivy()
+  const { user } = usePrivy()
   const [userData, setUserData] = useState<UserData>({
     profile: null,
     stats: null,
@@ -75,41 +82,73 @@ export function useUserData(): UseUserDataReturn {
   })
 
   const userId = user?.id
+  const authenticated = !!userId
 
-  // Fetch user data from API
-  const fetchUserData = useCallback(async (userId: string) => {
+  // Helper: safely parse JSON, treating 404 as empty
+  const parseJSONSafe = useCallback(async (response: Response) => {
+    if (response.status === 404) {
+      return null
+    }
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      throw new Error(text || response.statusText || 'Failed to fetch')
+    }
+    return response.json()
+  }, [])
+
+  const fetchUserData = useCallback(async (uid: string) => {
     try {
       setUserData(prev => ({ ...prev, isLoading: true, error: null }))
 
-      // Fetch all user data in parallel
-      const [profileResponse, statsResponse, preferencesResponse, transactionsResponse] = await Promise.all([
-        fetch(`/api/user/profile?user_id=${userId}`),
-        fetch(`/api/user/stats?user_id=${userId}`),
-        fetch(`/api/user/preferences?user_id=${userId}`),
-        fetch(`/api/user/transactions?user_id=${userId}`)
-      ])
-
-      // Check for errors
-      const responses = [profileResponse, statsResponse, preferencesResponse, transactionsResponse]
-      const errors = responses.filter(response => !response.ok)
+      const headers = buildHeaders()
       
-      if (errors.length > 0) {
-        throw new Error(`Failed to fetch user data: ${errors.map(e => e.statusText).join(', ')}`)
+      // Log the headers to debug authentication
+      secureLogger.info('Fetching user data with headers', { 
+        userId: uid, 
+        hasAuthHeader: !!headers.Authorization,
+        hasPrivyToken: !!headers['x-privy-token']
+      })
+      
+      // If no auth headers, wait a bit and try again
+      if (!headers.Authorization && !headers['x-privy-token']) {
+        secureLogger.warn('No authentication headers available, waiting and retrying...', { userId: uid })
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        // Try building headers again
+        const retryHeaders = buildHeaders()
+        secureLogger.info('Retrying with headers', { 
+          userId: uid, 
+          hasAuthHeader: !!retryHeaders.Authorization,
+          hasPrivyToken: !!retryHeaders['x-privy-token']
+        })
       }
-
-      // Parse responses
-      const [profileData, statsData, preferencesData, transactionsData] = await Promise.all([
-        profileResponse.json(),
-        statsResponse.json(),
-        preferencesResponse.json(),
-        transactionsResponse.json()
+      
+      const [profileResponse, statsResponse, preferencesResponse, transactionsResponse] = await Promise.all([
+        fetch(`/api/user/profile?user_id=${encodeURIComponent(uid)}`, { headers }),
+        fetch(`/api/user/stats?user_id=${encodeURIComponent(uid)}`, { headers }),
+        fetch(`/api/user/preferences?user_id=${encodeURIComponent(uid)}`, { headers }),
+        fetch(`/api/user/transactions?user_id=${encodeURIComponent(uid)}`, { headers })
       ])
+
+      // Log response statuses for debugging
+      secureLogger.info('User data API responses', {
+        profileStatus: profileResponse.status,
+        statsStatus: statsResponse.status,
+        preferencesStatus: preferencesResponse.status,
+        transactionsStatus: transactionsResponse.status
+      })
+
+      // Safely parse each response
+      const profileData = await parseJSONSafe(profileResponse)
+      const statsData = await parseJSONSafe(statsResponse)
+      const preferencesData = await parseJSONSafe(preferencesResponse)
+      const transactionsData = await parseJSONSafe(transactionsResponse)
 
       setUserData({
-        profile: profileData.profile || null,
-        stats: statsData.stats || null,
-        preferences: preferencesData.preferences || null,
-        transactions: transactionsData.transactions || [],
+        profile: profileData?.profile || null,
+        stats: statsData?.stats || null,
+        preferences: preferencesData?.preferences || null,
+        transactions: transactionsData?.transactions || [],
         isLoading: false,
         error: null,
         lastUpdated: new Date()
@@ -117,14 +156,14 @@ export function useUserData(): UseUserDataReturn {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch user data'
-      secureLogger.error('Error fetching user data', { userId, error: errorMessage })
+      secureLogger.error('Error fetching user data', { userId: uid, error: errorMessage })
       setUserData(prev => ({
         ...prev,
         isLoading: false,
         error: errorMessage
       }))
     }
-  }, [])
+  }, [parseJSONSafe])
 
   // Refresh data
   const refreshData = useCallback(async () => {
@@ -138,10 +177,12 @@ export function useUserData(): UseUserDataReturn {
     if (!userId) return
 
     try {
+      const headers = buildHeaders()
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...headers
         },
         body: JSON.stringify({
           user_id: userId,
@@ -175,10 +216,12 @@ export function useUserData(): UseUserDataReturn {
     if (!userId) return
 
     try {
+      const headers = buildHeaders()
       const response = await fetch('/api/user/preferences', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...headers
         },
         body: JSON.stringify({
           user_id: userId,
@@ -207,10 +250,15 @@ export function useUserData(): UseUserDataReturn {
     }
   }, [userId])
 
-  // Fetch data when user is authenticated
+  // Fetch data when user is authenticated and token is available
   useEffect(() => {
     if (userId && authenticated) {
-      fetchUserData(userId)
+      // Add a small delay to ensure Privy token is set
+      const timer = setTimeout(() => {
+        fetchUserData(userId)
+      }, 1000) // Increased delay to 1 second
+      
+      return () => clearTimeout(timer)
     } else {
       setUserData({
         profile: null,

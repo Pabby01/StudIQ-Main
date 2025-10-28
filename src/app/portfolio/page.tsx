@@ -21,6 +21,7 @@ import { TransactionModal } from '@/components/portfolio/TransactionModal';
 import { TransactionHistory } from '@/components/portfolio/TransactionHistory';
 import { MarketData } from '@/components/portfolio/MarketData';
 import { MobilePortfolioNavigation } from '@/components/portfolio/MobilePortfolioNavigation';
+import { SolflareWalletProvider } from '@/contexts/SolflareWalletContext';
 import type { WalletPortfolio, Transaction } from '@/lib/wallet-data';
 import type { UserProfile } from '@/lib/user-data';
 
@@ -99,15 +100,8 @@ export default function PortfolioPage() {
       setIsLoading(true);
       setError(null);
       
-      // Validate session
-      const sessionValid = securityService.validateSession();
-      setIsSessionValid(sessionValid);
-      
-      if (!sessionValid) {
-        secureLogger.warn('Invalid session detected');
-        setError('Session expired. Please refresh the page.');
-        return;
-      }
+      // Set session as valid since we're using Privy authentication
+      setIsSessionValid(true);
 
       const address = walletAddress.address!;
 
@@ -224,7 +218,8 @@ export default function PortfolioPage() {
   return (
     <>
       <ClientSEO metadata={seoMetadata} />
-      <AppLayout>
+      <SolflareWalletProvider>
+        <AppLayout>
         <div className="container mx-auto px-4 py-8 space-y-6">
         {/* Security Warning */}
         {!isSessionValid && (
@@ -408,7 +403,8 @@ export default function PortfolioPage() {
           isLoading={isLoading}
         />
         </div>
-      </AppLayout>
+        </AppLayout>
+      </SolflareWalletProvider>
     </>
   );
 }
