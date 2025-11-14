@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
 // Mock the dependencies
@@ -84,7 +85,7 @@ describe('Authentication Flow Test', () => {
       const mockWalletAddress = '7xKXtg2CW34dJq9usX6ewnA8sZMFVU6m5p9MNv4jezL';
       
       // Mock the authentication middleware behavior
-      const mockValidateUserAuthWithRLS = jest.fn().mockImplementation(async (request: MockAuthRequest): Promise<MockAuthResult> => {
+      const mockValidateUserAuthWithRLS = jest.fn(async (request: MockAuthRequest): Promise<MockAuthResult> => {
         const requestedUserId = request.headers.get('x-user-id');
         const operation = request.headers.get('x-operation') || 'read';
         const method = request.method;
@@ -108,7 +109,7 @@ describe('Authentication Flow Test', () => {
       });
 
       // Test the profile creation endpoint behavior
-      const mockProfileCreation = jest.fn(async (userId: string, profileData: MockProfileData): Promise<MockProfileResult> => {
+      const mockProfileCreation = jest.fn(async (userId: string, profileData: MockProfileData) => {
         // Simulate successful profile creation
         return {
           success: true,
@@ -154,7 +155,7 @@ describe('Authentication Flow Test', () => {
     it('should handle existing users correctly', async () => {
       const mockExistingUserId = 'did:privy:existing-user';
       
-      const mockValidateUserAuthWithRLS = jest.fn().mockImplementation(async (request: MockAuthRequest): Promise<MockAuthResult> => {
+      const mockValidateUserAuthWithRLS = jest.fn(async (request: MockAuthRequest): Promise<MockAuthResult> => {
         const requestedUserId = request.headers.get('x-user-id');
         
         // Simulate existing user validation
@@ -241,38 +242,6 @@ describe('Authentication Flow Test', () => {
 
   describe('User Login Handling', () => {
     it('should handle user login via API correctly', async () => {
-      // Mock fetch for the API call
-      global.fetch = jest.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            data: {
-              userId: 'did:privy:test-sync-user',
-              isNewUser: true,
-              profile: {
-                user_id: 'did:privy:test-sync-user',
-                display_name: 'test',
-                wallet_address: '7xKXtg2CW34dJq9usX6ewnA8sZMFVU6m5p9MNv4jezL',
-                created_at: new Date().toISOString()
-              },
-              stats: {
-                user_id: 'did:privy:test-sync-user',
-                total_sessions: 0,
-                total_points: 0,
-                created_at: new Date().toISOString()
-              },
-              preferences: {
-                user_id: 'did:privy:test-sync-user',
-                theme: 'light',
-                notifications: true,
-                created_at: new Date().toISOString()
-              }
-            }
-          })
-        })
-      );
-
       const mockPrivyUser: MockPrivyUser = {
         id: 'did:privy:test-sync-user',
         email: 'test@example.com',
@@ -281,9 +250,6 @@ describe('Authentication Flow Test', () => {
         }
       };
 
-      // Mock getAccessToken
-      jest.fn().mockResolvedValue('mock-access-token');
-      
       // Test would need to be updated to properly mock AuthManager.handleUserLogin
       // This is a simplified test structure
       expect(mockPrivyUser.id).toBe('did:privy:test-sync-user');

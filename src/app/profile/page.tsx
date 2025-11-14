@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/components/AppLayout';
 import AuthWrapper from '@/components/AuthWrapper';
 import { secureLogger } from '@/lib/secure-logger';
-import { userProfileManager, formatDisplayName, generateAvatar, getGreeting, UserProfile } from '@/lib/user-data';
+import { userProfileManager, patchProfile, validateProfileUpdate, formatDisplayName, generateAvatar, getGreeting, UserProfile } from '@/lib/user-data';
 import { validateImageFile, getUploadErrorMessage } from '@/lib/image-upload';
 import { 
   User, 
@@ -146,7 +146,9 @@ export default function ProfilePage() {
 
     try {
       const formattedName = formatDisplayName(editedName.trim());
-      const updatedProfile = await userProfileManager.updateProfile(walletAddress.address!, {
+      
+      // Prepare updates
+      const updates = {
         displayName: formattedName,
         bio: editedBio.trim(),
         university: editedUniversity.trim(),
@@ -155,6 +157,18 @@ export default function ProfilePage() {
         github: editedSocials.github.trim(),
         linkedin: editedSocials.linkedin.trim(),
         website: editedSocials.website.trim()
+      };
+
+      // Validate updates
+      const validation = validateProfileUpdate(updates);
+      if (!validation.isValid) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+      }
+
+      // Use the comprehensive patch function
+      const updatedProfile = await patchProfile(walletAddress.address!, updates, {
+        validate: false, // Already validated above
+        preserveSocial: true // Preserve existing social fields
       });
       
       if (updatedProfile) {
@@ -164,8 +178,13 @@ export default function ProfilePage() {
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch (error) {
-      setNameError('Failed to update profile. Please try again.');
-      secureLogger.error('Profile update error', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to update profile';
+      setNameError(errorMsg);
+      secureLogger.error('Profile update failed', {
+        userId: walletAddress.address,
+        error: errorMsg,
+        timestamp: new Date().toISOString()
+      });
     } finally {
       setIsLoading(false);
     }
@@ -211,8 +230,18 @@ export default function ProfilePage() {
     setIsLoading(true);
 
     try {
-      const updatedProfile = await userProfileManager.updateProfile(profile.walletAddress, {
+      // Validate phone number
+      const phoneValidation = validateProfileUpdate({ phone: editedPhone.trim() });
+      if (!phoneValidation.isValid) {
+        throw new Error(`Phone validation failed: ${phoneValidation.errors.join(', ')}`);
+      }
+
+      // Use the comprehensive patch function for phone update
+      const updatedProfile = await patchProfile(profile.walletAddress, {
         phone: editedPhone.trim()
+      }, {
+        validate: false, // Already validated above
+        preserveSocial: true // Preserve existing social fields
       });
       
       if (updatedProfile) {
@@ -222,8 +251,13 @@ export default function ProfilePage() {
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch (error) {
-      setPhoneError('Failed to update phone number. Please try again.');
-      secureLogger.error('Phone update error', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to update phone number';
+      setPhoneError(errorMsg);
+      secureLogger.error('Phone update failed', {
+        userId: profile?.walletAddress,
+        error: errorMsg,
+        timestamp: new Date().toISOString()
+      });
     } finally {
       setIsLoading(false);
     }
@@ -268,10 +302,13 @@ export default function ProfilePage() {
 
       const result = await response.json();
       
-      // Update profile with new avatar URL
+      // Update profile with new avatar URL using comprehensive patch function
       if (profile) {
-        const updatedProfile = await userProfileManager.updateProfile(walletAddress.address!, {
+        const updatedProfile = await patchProfile(walletAddress.address!, {
           avatarUrl: result.url
+        }, {
+          validate: true, // Validate the avatar URL
+          preserveSocial: true // Preserve existing social fields
         });
         
         if (updatedProfile) {

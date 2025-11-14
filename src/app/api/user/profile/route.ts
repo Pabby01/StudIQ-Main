@@ -138,8 +138,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Use the authenticated user ID from authResult as the authoritative user ID
+    // This ensures consistency between the token and the user ID used in the database
+    const authoritativeUserId = authResult.userId || profileData.user_id;
+
     secureLogger.info('Profile POST authentication successful', {
-      userId: profileData.user_id?.startsWith('did:privy:') ? '[PRIVY_ID]' : '[USER_ID]',
+      originalUserId: profileData.user_id?.startsWith('did:privy:') ? '[PRIVY_ID]' : '[USER_ID]',
+      authoritativeUserId: authoritativeUserId?.startsWith('did:privy:') ? '[PRIVY_ID]' : '[USER_ID]',
       rlsContextSet: authResult.rlsContextSet
     })
 
@@ -147,10 +152,10 @@ export async function POST(request: NextRequest) {
       // Sanitize and validate input data
       const sanitizedData = {
         ...profileData,
-        user_id: sanitizeInput(profileData.user_id, 100),
+        user_id: sanitizeInput(authoritativeUserId, 100),
         display_name: profileData.display_name ? sanitizeInput(profileData.display_name, 50) : undefined,
         email: profileData.email ? sanitizeInput(profileData.email, 255) : undefined,
-        wallet_address: profileData.wallet_address ? sanitizeInput(profileData.wallet_address, 100) : undefined
+        wallet_address: profileData.wallet_address ? sanitizeInput(profileData.wallet_address, 100) : sanitizeInput(authoritativeUserId, 100)
       }
 
       // Additional validation for specific fields
@@ -237,9 +242,13 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Use the authenticated user ID from authResult as the authoritative user ID
+    // This ensures consistency between the token and the user ID used in the database
+    const authoritativeUserId = authResult.userId || updateData.user_id;
+
     // Extract user_id and sanitize the rest of the update data
-    const { user_id, ...updates } = updateData
-    const sanitizedUserId = sanitizeInput(user_id, 100)
+    const { ...updates } = updateData
+    const sanitizedUserId = sanitizeInput(authoritativeUserId, 100)
     
     // Sanitize update fields
     const sanitizedUpdates: any = {}

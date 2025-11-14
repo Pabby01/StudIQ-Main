@@ -7,8 +7,8 @@
  * for the StudIQ application to work properly.
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 console.log('🚀 StudIQ Environment Setup');
 console.log('============================\n');

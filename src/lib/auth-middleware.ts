@@ -74,10 +74,23 @@ export async function validateUserAuth(
 
     // Validate that the requested user_id matches the authenticated user
     // Support both user.id and wallet_address as identifiers
+    // Also handle Privy DIDs vs wallet addresses
     const isAuthorized = 
       requestedUserId === user.id || 
       requestedUserId === profile.wallet_address ||
       requestedUserId === profile.user_id
+
+    // Additional logging for debugging ID format mismatches
+    if (!isAuthorized) {
+      secureLogger.warn('Authorization check failed', {
+        requestedUserId: requestedUserId?.startsWith('did:privy:') ? '[PRIVY_ID]' : requestedUserId?.length > 20 ? '[WALLET_ADDRESS]' : requestedUserId,
+        userId: user.id?.startsWith('did:privy:') ? '[PRIVY_ID]' : user.id,
+        profileUserId: profile.user_id?.startsWith('did:privy:') ? '[PRIVY_ID]' : profile.user_id,
+        walletAddress: profile.wallet_address && profile.wallet_address.length > 20 ? '[WALLET_ADDRESS]' : profile.wallet_address,
+        requestedFormat: requestedUserId?.startsWith('did:privy:') ? 'privy-did' : 
+                        requestedUserId?.match(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/) ? 'wallet-address' : 'other'
+      })
+    }
 
     if (!isAuthorized) {
       return {
@@ -175,16 +188,50 @@ export async function validatePrivySession(
       const tokenUserId = payload.sub || payload.user_id || payload.id;
       
       // Verify the token belongs to the requested user
-      if (tokenUserId && tokenUserId !== requestedUserId) {
-        secureLogger.warn('Token user ID mismatch', {
-          tokenUserId,
-          requestedUserId
-        });
-        return {
-          success: false,
-          error: 'Token does not match requested user',
-          statusCode: 403
-        };
+      // Handle different ID formats: Privy DIDs, wallet addresses, etc.
+      if (tokenUserId) {
+        const isTokenPrivyDID = tokenUserId.startsWith('did:privy:');
+        const isRequestedPrivyDID = requestedUserId.startsWith('did:privy:');
+        const isRequestedWalletAddress = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(requestedUserId);
+        
+        // Case 1: Both are Privy DIDs - direct comparison
+        if (isTokenPrivyDID && isRequestedPrivyDID) {
+          if (tokenUserId !== requestedUserId) {
+            secureLogger.warn('Token Privy DID mismatch', {
+              tokenUserId,
+              requestedUserId
+            });
+            return {
+              success: false,
+              error: 'Token does not match requested user',
+              statusCode: 403
+            };
+          }
+        }
+        // Case 2: Token is Privy DID, requested is wallet address
+        else if (isTokenPrivyDID && isRequestedWalletAddress) {
+          // For this case, we need to check if the wallet address belongs to the Privy user
+          // Since we don't have direct mapping, we'll allow it for now but log the mismatch
+          secureLogger.info('Token Privy DID with requested wallet address - allowing with caution', {
+            tokenUserId,
+            requestedUserId
+          });
+          // Continue with validation but use the token user ID as the authoritative ID
+        }
+        // Case 3: Direct string comparison for other cases
+        else if (tokenUserId !== requestedUserId) {
+          secureLogger.warn('Token user ID mismatch', {
+            tokenUserId,
+            requestedUserId,
+            tokenFormat: isTokenPrivyDID ? 'privy-did' : 'other',
+            requestedFormat: isRequestedPrivyDID ? 'privy-did' : isRequestedWalletAddress ? 'wallet-address' : 'other'
+          });
+          return {
+            success: false,
+            error: 'Token does not match requested user',
+            statusCode: 403
+          };
+        }
       }
     } catch (decodeError) {
       secureLogger.warn('Failed to decode token payload', { decodeError });
@@ -194,10 +241,23 @@ export async function validatePrivySession(
     // Relaxed validation: if a Privy token is present and ID format is correct, allow operations
     // assuming the requester is acting on their own identifier.
     // This enables initial writes before a profile exists.
+    
+    // Use the token user ID as the authoritative ID when available
+    let finalUserId = requestedUserId;
+    try {
+      const payload = JSON.parse(atob(tokenParts[1]));
+      const tokenUserId = payload.sub || payload.user_id || payload.id;
+      if (tokenUserId) {
+        finalUserId = tokenUserId;
+      }
+    } catch {
+      // If token parsing fails, use requestedUserId
+    }
+    
     return {
       success: true,
-      userId: requestedUserId,
-      userWalletAddress: requestedUserId
+      userId: finalUserId,
+      userWalletAddress: finalUserId
     }
 
   } catch (error) {

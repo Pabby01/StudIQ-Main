@@ -2,6 +2,7 @@ import { UserProfileManager, UserStatsManager, UserPreferencesManager } from './
 import { ClientUserProfileManager, ClientUserPreferencesManager } from './client-database-utils'
 import { secureLogger, secureLogUtils } from './secure-logger'
 import { normalizeWalletAddress } from './wallet-utils'
+import { UserProfileInsert } from './database-types'
 
 export interface UserProfile {
   id: string;
@@ -13,9 +14,12 @@ export interface UserProfile {
   avatarUrl?: string;
   bio?: string;
   university?: string;
+  major?: string;
+  graduationYear?: number;
   twitter?: string;
   github?: string;
   linkedin?: string;
+  instagram?: string;
   website?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -55,16 +59,15 @@ const calculateLevel = (points: number): { level: string; nextLevelPoints: numbe
 const convertDbProfileToLegacy = async (
   dbProfile: {
     id: string;
-    wallet_address?: string;
+    wallet_address?: string | null;
     display_name: string;
     email?: string | null;
     phone?: string | null;
     avatar_url?: string | null;
     bio?: string | null;
-    twitter?: string | null;
-    github?: string | null;
-    linkedin?: string | null;
-    website?: string | null;
+    university?: string | null;
+    major?: string | null;
+    graduation_year?: number | null;
     created_at: string;
     updated_at: string;
   },
@@ -83,10 +86,14 @@ const convertDbProfileToLegacy = async (
     avatar: dbProfile.avatar_url || undefined,
     avatarUrl: dbProfile.avatar_url || undefined,
     bio: dbProfile.bio || undefined,
-    twitter: dbProfile.twitter || undefined,
-    github: dbProfile.github || undefined,
-    linkedin: dbProfile.linkedin || undefined,
-    website: dbProfile.website || undefined,
+    university: dbProfile.university || undefined,
+    major: dbProfile.major || undefined,
+    graduationYear: dbProfile.graduation_year || undefined,
+    twitter: undefined, // Database doesn't have social fields
+    github: undefined,
+    linkedin: undefined,
+    instagram: undefined,
+    website: undefined,
     createdAt: new Date(dbProfile.created_at),
     updatedAt: new Date(dbProfile.updated_at),
     preferences: {
@@ -144,6 +151,10 @@ export const userProfileManager = {
           email: dbProfile.email,
           phone: dbProfile.phone,
           avatar_url: dbProfile.avatar_url,
+          bio: dbProfile.bio,
+          university: dbProfile.university,
+          major: dbProfile.major,
+          graduation_year: dbProfile.graduation_year,
           created_at: dbProfile.created_at,
           updated_at: dbProfile.updated_at
         },
@@ -215,6 +226,10 @@ export const userProfileManager = {
           email: dbProfile.email,
           phone: dbProfile.phone,
           avatar_url: dbProfile.avatar_url,
+          bio: dbProfile.bio,
+          university: dbProfile.university,
+          major: dbProfile.major,
+          graduation_year: dbProfile.graduation_year,
           created_at: dbProfile.created_at,
           updated_at: dbProfile.updated_at
         },
@@ -235,14 +250,55 @@ export const userProfileManager = {
       const existingProfile = await userProfileManager.getProfile(walletAddress)
       if (!existingProfile) return null
 
-      const updatedProfile = {
-        ...existingProfile,
-        ...updates,
-        updatedAt: new Date(),
+      // Map camelCase client fields to snake_case database fields
+      const mappedUpdates: Record<string, string | number | null> = {}
+      if (updates.displayName !== undefined) mappedUpdates.display_name = updates.displayName
+      if (updates.avatarUrl !== undefined) mappedUpdates.avatar_url = updates.avatarUrl
+      if (updates.bio !== undefined) mappedUpdates.bio = updates.bio
+      if (updates.email !== undefined) mappedUpdates.email = updates.email
+      if (updates.phone !== undefined) mappedUpdates.phone = updates.phone
+      if (updates.university !== undefined) mappedUpdates.university = updates.university
+      if (updates.major !== undefined) mappedUpdates.major = updates.major
+      if (updates.graduationYear !== undefined) mappedUpdates.graduation_year = updates.graduationYear
+      if (updates.walletAddress !== undefined) mappedUpdates.wallet_address = updates.walletAddress
+
+      // Handle social fields - these are NOT in the database schema
+      const socialUpdates: Record<string, string> = {}
+      if (updates.twitter) socialUpdates.twitter = updates.twitter
+      if (updates.github) socialUpdates.github = updates.github
+      if (updates.linkedin) socialUpdates.linkedin = updates.linkedin
+      if (updates.website) socialUpdates.website = updates.website
+
+      // Log warning about unsupported social fields
+      if (Object.keys(socialUpdates).length > 0) {
+        secureLogger.warn('Social media fields are not supported in user_profiles table', {
+          walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
+          socialFields: Object.keys(socialUpdates)
+        })
       }
 
-      await userProfileManager.saveProfile(updatedProfile)
-      return updatedProfile
+      // Update profile via client manager for consistency
+      const updatedDbProfile = await ClientUserProfileManager.updateProfile(walletAddress, mappedUpdates)
+
+      // Convert the database response back to client format
+      const dbPrefs = await UserPreferencesManager.getPreferences(walletAddress)
+      return await convertDbProfileToLegacy(
+        {
+          id: updatedDbProfile.id,
+          wallet_address: updatedDbProfile.wallet_address || undefined,
+          display_name: updatedDbProfile.display_name,
+          email: updatedDbProfile.email,
+          phone: updatedDbProfile.phone,
+          avatar_url: updatedDbProfile.avatar_url,
+          bio: updatedDbProfile.bio,
+          university: updatedDbProfile.university,
+          major: updatedDbProfile.major,
+          graduation_year: updatedDbProfile.graduation_year,
+          created_at: updatedDbProfile.created_at,
+          updated_at: updatedDbProfile.updated_at
+        },
+        dbPrefs
+      )
     } catch (error) {
       secureLogger.error('Error updating user profile', {
         walletAddress: secureLogUtils.maskWalletAddress(walletAddress),
@@ -359,6 +415,193 @@ export const formatDisplayName = (name: string): string => {
   return name.trim().split(' ').map(word => 
     word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   ).join(' ');
+}
+
+// Comprehensive profile validation function
+export const validateProfileUpdate = (updates: Partial<UserProfile>): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = []
+
+  // Validate display name
+  if (updates.displayName !== undefined) {
+    if (typeof updates.displayName !== 'string') {
+      errors.push('Display name must be a string')
+    } else if (updates.displayName.trim().length < 2) {
+      errors.push('Display name must be at least 2 characters long')
+    } else if (updates.displayName.trim().length > 50) {
+      errors.push('Display name must not exceed 50 characters')
+    }
+  }
+
+  // Validate email
+  if (updates.email !== undefined && updates.email !== null) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(updates.email)) {
+      errors.push('Invalid email format')
+    }
+  }
+
+  // Validate phone
+  if (updates.phone !== undefined && updates.phone !== null) {
+    const phoneRegex = /^\+?[\d\s\-\(\)]+$/
+    if (!phoneRegex.test(updates.phone)) {
+      errors.push('Invalid phone number format')
+    } else if (updates.phone.replace(/\D/g, '').length < 10) {
+      errors.push('Phone number must be at least 10 digits')
+    }
+  }
+
+  // Validate bio
+  if (updates.bio !== undefined && updates.bio !== null) {
+    if (typeof updates.bio !== 'string') {
+      errors.push('Bio must be a string')
+    } else if (updates.bio.length > 500) {
+      errors.push('Bio must not exceed 500 characters')
+    }
+  }
+
+  // Validate university
+  if (updates.university !== undefined && updates.university !== null) {
+    if (typeof updates.university !== 'string') {
+      errors.push('University must be a string')
+    } else if (updates.university.length > 100) {
+      errors.push('University name must not exceed 100 characters')
+    }
+  }
+
+  // Validate major
+  if (updates.major !== undefined && updates.major !== null) {
+    if (typeof updates.major !== 'string') {
+      errors.push('Major must be a string')
+    } else if (updates.major.length > 100) {
+      errors.push('Major must not exceed 100 characters')
+    }
+  }
+
+  // Validate graduation year
+  if (updates.graduationYear !== undefined && updates.graduationYear !== null) {
+    const currentYear = new Date().getFullYear()
+    if (typeof updates.graduationYear !== 'number' || !Number.isInteger(updates.graduationYear)) {
+      errors.push('Graduation year must be a whole number')
+    } else if (updates.graduationYear < currentYear || updates.graduationYear > currentYear + 10) {
+      errors.push('Graduation year must be between current year and 10 years in the future')
+    }
+  }
+
+  // Validate avatar URL
+  if (updates.avatarUrl !== undefined && updates.avatarUrl !== null) {
+    if (typeof updates.avatarUrl !== 'string') {
+      errors.push('Avatar URL must be a string')
+    } else {
+      try {
+        new URL(updates.avatarUrl)
+      } catch {
+        errors.push('Avatar URL must be a valid URL')
+      }
+    }
+  }
+
+  // Validate social media URLs
+  const socialFields = ['twitter', 'linkedin', 'instagram', 'website'] as const
+  for (const field of socialFields) {
+    if (updates[field] !== undefined && updates[field] !== null) {
+      if (typeof updates[field] !== 'string') {
+        errors.push(`${field} must be a string`)
+      } else if (updates[field] && !updates[field].startsWith('http')) {
+        // Allow empty strings but validate non-empty ones
+        if (updates[field].length > 0) {
+          errors.push(`${field} must be a valid URL starting with http`)
+        }
+      }
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  }
+}
+
+// Enhanced profile update function with validation and error handling
+export const patchProfile = async (
+  userId: string, 
+  updates: Partial<UserProfile>, 
+  options: { validate?: boolean; preserveSocial?: boolean } = {}
+): Promise<UserProfile> => {
+  const { validate = true, preserveSocial = true } = options
+
+  try {
+    // Validate updates if requested
+    if (validate) {
+      const validation = validateProfileUpdate(updates)
+      if (!validation.isValid) {
+        throw new Error(`Profile validation failed: ${validation.errors.join(', ')}`)
+      }
+    }
+
+    // Get existing profile to preserve social fields if requested
+    let existingProfile: UserProfile | null = null
+    if (preserveSocial) {
+      existingProfile = await userProfileManager.getProfile(userId)
+    }
+
+    // Map camelCase to snake_case for database
+    const mappedUpdates: Partial<UserProfileInsert> = {}
+    
+    // Map supported fields
+    if (updates.displayName !== undefined) mappedUpdates.display_name = updates.displayName
+    if (updates.avatarUrl !== undefined) mappedUpdates.avatar_url = updates.avatarUrl
+    if (updates.bio !== undefined) mappedUpdates.bio = updates.bio
+    if (updates.email !== undefined) mappedUpdates.email = updates.email
+    if (updates.phone !== undefined) mappedUpdates.phone = updates.phone
+    if (updates.university !== undefined) mappedUpdates.university = updates.university
+    if (updates.major !== undefined) mappedUpdates.major = updates.major
+    if (updates.graduationYear !== undefined) mappedUpdates.graduation_year = updates.graduationYear
+    if (updates.walletAddress !== undefined) mappedUpdates.wallet_address = updates.walletAddress
+
+    // Use client API for consistency
+    const updatedDbProfile = await ClientUserProfileManager.updateProfile(userId, mappedUpdates)
+
+    // Convert back to client format and preserve social fields if needed
+    let resultProfile = await convertDbProfileToLegacy(updatedDbProfile, null)
+    
+    if (preserveSocial && existingProfile) {
+      // Preserve existing social fields if not explicitly updated
+      resultProfile = {
+        ...resultProfile,
+        twitter: updates.twitter !== undefined ? updates.twitter : existingProfile.twitter,
+        linkedin: updates.linkedin !== undefined ? updates.linkedin : existingProfile.linkedin,
+        instagram: updates.instagram !== undefined ? updates.instagram : existingProfile.instagram,
+        website: updates.website !== undefined ? updates.website : existingProfile.website,
+        github: updates.github !== undefined ? updates.github : existingProfile.github
+      }
+    } else if (!preserveSocial) {
+      // Apply updates for social fields if explicitly provided
+      resultProfile = {
+        ...resultProfile,
+        twitter: updates.twitter !== undefined ? updates.twitter : resultProfile.twitter,
+        linkedin: updates.linkedin !== undefined ? updates.linkedin : resultProfile.linkedin,
+        instagram: updates.instagram !== undefined ? updates.instagram : resultProfile.instagram,
+        website: updates.website !== undefined ? updates.website : resultProfile.website,
+        github: updates.github !== undefined ? updates.github : resultProfile.github
+      }
+    }
+
+    secureLogger.info('Profile updated successfully', {
+      userId: secureLogUtils.maskUserId(userId),
+      updatedFields: Object.keys(mappedUpdates),
+      timestamp: new Date().toISOString()
+    })
+
+    return resultProfile
+
+  } catch (error) {
+    secureLogger.error('Error in patchProfile', {
+      userId: secureLogUtils.maskUserId(userId),
+      error: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    })
+    throw error
+  }
 };
 
 export const getGreeting = (name: string): string => {

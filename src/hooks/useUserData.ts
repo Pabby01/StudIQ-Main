@@ -2,6 +2,24 @@ import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useState } from 'react'
 import { secureLogger } from '@/lib/secure-logger'
 import { buildHeaders } from '@/lib/client-database-utils'
+import { patchProfile, validateProfileUpdate } from '@/lib/user-data'
+
+// Helper function to convert user-data.ts UserProfile to hook UserProfile
+function convertUserProfile(profile: import('@/lib/user-data').UserProfile): UserProfile {
+  return {
+    id: profile.id,
+    user_id: profile.walletAddress,
+    display_name: profile.displayName,
+    email: profile.email || '',
+    wallet_address: profile.walletAddress,
+    avatar_url: profile.avatarUrl || profile.avatar || '',
+    bio: profile.bio || '',
+    level: 1, // Default level, will be updated from stats
+    total_points: 0, // Default points, will be updated from stats
+    created_at: profile.createdAt.toISOString(),
+    updated_at: profile.updatedAt.toISOString()
+  }
+}
 
 export interface UserProfile {
   id: string
@@ -174,33 +192,33 @@ export function useUserData(): UseUserDataReturn {
 
   // Update profile
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
-    if (!userId) return
+    if (!userId) {
+      secureLogger.error('updateProfile called without userId')
+      throw new Error('User ID is required')
+    }
 
     try {
-      const headers = buildHeaders()
-      const response = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          ...updates
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to update profile')
+      // Validate updates
+      const validation = validateProfileUpdate(updates)
+      if (!validation.isValid) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
       }
 
-      const { profile } = await response.json()
-      setUserData(prev => ({
-        ...prev,
-        profile,
-        lastUpdated: new Date()
-      }))
+      // Use the comprehensive patch function
+      const updatedProfile = await patchProfile(userId, updates, {
+        validate: false, // Already validated above
+        preserveSocial: true // Preserve existing social fields
+      })
 
+      if (updatedProfile) {
+        setUserData(prev => ({
+          ...prev,
+          profile: convertUserProfile(updatedProfile),
+          lastUpdated: new Date()
+        }))
+      } else {
+        throw new Error('Failed to update profile')
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update profile'
       secureLogger.error('Error updating profile', { userId, error: errorMessage })
@@ -208,6 +226,7 @@ export function useUserData(): UseUserDataReturn {
         ...prev,
         error: errorMessage
       }))
+      throw error
     }
   }, [userId])
 

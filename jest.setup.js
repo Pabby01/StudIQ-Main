@@ -1,6 +1,11 @@
 // Jest setup file
 // This file is executed before each test file
 
+// Add TextEncoder/TextDecoder for Node.js compatibility
+import { TextEncoder, TextDecoder } from 'util';
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
 // Mock fetch for API integration tests
 global.fetch = jest.fn();
 
