@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/components/AppLayout';
@@ -68,9 +69,30 @@ export default function ProfilePage() {
   const [isAddingPhone, setIsAddingPhone] = useState(false);
   const [editedPhone, setEditedPhone] = useState('');
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+
+  const applyTheme = (nextTheme: 'light' | 'dark' | 'system') => {
+    const root = document.documentElement;
+    const isDark = nextTheme === 'dark' || (nextTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.classList.toggle('dark', !!isDark);
+    try {
+      localStorage.setItem('studiq_theme', nextTheme);
+    } catch {}
+    setTheme(nextTheme);
+  };
 
   // Load user profile
   useEffect(() => {
+    try {
+      const saved = (localStorage.getItem('studiq_theme') as 'light' | 'dark' | 'system' | null) || null;
+      const initial = saved ?? 'system';
+      setTheme(initial);
+      applyTheme(initial);
+    } catch {
+      setTheme('system');
+      applyTheme('system');
+    }
+
     const loadProfile = async () => {
       if (authenticated && walletAddress.isValid) {
         const walletAddr = walletAddress.address!;
@@ -780,10 +802,23 @@ export default function ProfilePage() {
                       <Globe className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                       <div>
                         <div className="text-sm font-medium">Theme</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-300">Light mode</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300">
+                          {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark mode' : 'Light mode'}
+                        </div>
                       </div>
                     </div>
-                    <Badge variant="secondary">Default</Badge>
+                    <div className="w-40">
+                      <Select value={theme} onValueChange={(v) => applyTheme(v as 'light' | 'dark' | 'system')}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select theme" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="system">System</SelectItem>
+                          <SelectItem value="light">Light</SelectItem>
+                          <SelectItem value="dark">Dark</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Notifications */}
