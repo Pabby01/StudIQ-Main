@@ -146,6 +146,15 @@
       0 0 0 1px rgba(255, 255, 255, 0.1) inset;
     border-radius: 1.5rem;
   }
+  .dark .glass-panel {
+    background: linear-gradient(135deg,
+      rgba(17, 24, 39, 0.6) 0%,
+      rgba(17, 24, 39, 0.5) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 25px 50px -12px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  }
   
   .glass-card {
     background: linear-gradient(135deg, 
@@ -160,6 +169,16 @@
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 1.25rem;
   }
+  .dark .glass-card {
+    background: linear-gradient(135deg,
+      rgba(17, 24, 39, 0.7) 0%,
+      rgba(17, 24, 39, 0.6) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.5),
+      0 10px 10px -5px rgba(147, 51, 234, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  }
   
   .glass-card:hover {
     background: linear-gradient(135deg, 
@@ -169,6 +188,14 @@
       0 32px 64px -12px rgba(59, 130, 246, 0.2),
       0 0 0 1px rgba(255, 255, 255, 0.2) inset;
     transform: translateY(-4px) scale(1.02);
+  }
+  .dark .glass-card:hover {
+    background: linear-gradient(135deg,
+      rgba(17, 24, 39, 0.75) 0%,
+      rgba(17, 24, 39, 0.65) 100%);
+    box-shadow:
+      0 32px 64px -12px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(255, 255, 255, 0.06) inset;
   }
   
   .glass-nav {
@@ -180,6 +207,15 @@
     box-shadow: 
       0 10px 15px -3px rgba(59, 130, 246, 0.1),
       0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+  .dark .glass-nav {
+    background: linear-gradient(135deg,
+      rgba(17, 24, 39, 0.9) 0%,
+      rgba(17, 24, 39, 0.85) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 10px 15px -3px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   }
   
   /* Modern Web 3 Gradients */
@@ -354,6 +390,15 @@
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     transform: translateY(-2px);
   }
+  .dark .btn-secondary {
+    background-color: rgba(17, 24, 39, 0.8);
+    color: rgb(147, 197, 253);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .dark .btn-secondary:hover {
+    background-color: rgba(17, 24, 39, 0.9);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
   
   /* Icon Containers */
   .icon-container-primary {
@@ -373,6 +418,10 @@
     border-radius: 50%;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   }
+  .dark .icon-container-secondary {
+    background-color: rgba(17, 24, 39, 0.8);
+    color: rgb(147, 197, 253);
+  }
   
   /* Feature Cards */
   .feature-card {
@@ -389,6 +438,14 @@
     transform: scale(1.05);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   }
+  .dark .feature-card {
+    background-color: rgba(17, 24, 39, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  }
+  .dark .feature-card:hover {
+    background-color: rgba(17, 24, 39, 0.7);
+  }
   
   /* Step Cards */
   .step-card {
@@ -404,6 +461,14 @@
     background-color: rgba(255, 255, 255, 0.7);
     transform: translateY(-8px);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+  .dark .step-card {
+    background-color: rgba(17, 24, 39, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  }
+  .dark .step-card:hover {
+    background-color: rgba(17, 24, 39, 0.7);
   }
   
   /* Modern Web 3 Typography */
@@ -470,9 +535,9 @@
   }
   
   /* Section Backgrounds */
-  .bg-primary {
-    background-color: white;
-  }
+.bg-primary {
+  background-color: var(--background);
+}
   
   .bg-secondary {
     background: linear-gradient(135deg, rgba(147,197,253,0.03) 0%, rgba(59,130,246,0.02) 100%);

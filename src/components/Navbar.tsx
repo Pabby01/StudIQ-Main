@@ -49,7 +49,7 @@ export function Navbar() {
   }, []);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60 shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between items-center">
           {/* Logo */}
@@ -71,7 +71,7 @@ export function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-gray-50 min-h-[48px]"
+                  className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[48px]"
                   aria-label={item.name}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
@@ -84,7 +84,7 @@ export function Navbar() {
           {/* Desktop Wallet Button with Display Name */}
           <div className="hidden lg:flex items-center gap-3">
             {isAuthenticated && user?.displayName && (
-              <span className="text-gray-700 font-medium truncate max-w-[220px]">{user.displayName}</span>
+              <span className="text-gray-700 dark:text-gray-200 font-medium truncate max-w-[220px]">{user.displayName}</span>
             )}
             <Button
               variant="ghost"
@@ -109,7 +109,7 @@ export function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="flex items-center space-x-1 text-gray-600 hover:text-blue-600 transition-colors duration-200 px-2 py-2 rounded-lg hover:bg-gray-50 min-h-[48px]"
+                  className="flex items-center space-x-1 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 px-2 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[48px]"
                   aria-label={item.name}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
@@ -118,7 +118,7 @@ export function Navbar() {
               );
             })}
             {isAuthenticated && user?.displayName && (
-              <span className="text-gray-700 font-medium truncate max-w-[160px]">{user.displayName}</span>
+              <span className="text-gray-700 dark:text-gray-200 font-medium truncate max-w-[160px]">{user.displayName}</span>
             )}
             <Button
               variant="ghost"
@@ -158,7 +158,7 @@ export function Navbar() {
                         key={item.name}
                         href={item.href}
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center space-x-3 text-gray-600 hover:text-blue-600 transition-colors p-3 rounded-lg hover:bg-gray-50 min-h-[48px]"
+                        className="flex items-center space-x-3 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[48px]"
                         aria-label={item.name}
                       >
                         <Icon className="h-5 w-5 flex-shrink-0" />

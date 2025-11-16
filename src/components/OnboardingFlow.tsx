@@ -283,19 +283,19 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
             )}
 
             <div className="space-y-2 sm:space-y-3">
-              <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <Shield className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <div className="font-medium text-blue-900">Secure Authentication</div>
-                  <div className="text-blue-700">Multiple login options with wallet integration</div>
+                  <div className="font-medium text-blue-900 dark:text-blue-300">Secure Authentication</div>
+                  <div className="text-blue-700 dark:text-blue-200">Multiple login options with wallet integration</div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                 <Key className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <div className="font-medium text-green-900">Automatic Wallet Creation</div>
-                  <div className="text-green-700">We&apos;ll create a secure wallet for you automatically</div>
+                  <div className="font-medium text-green-900 dark:text-green-300">Automatic Wallet Creation</div>
+                  <div className="text-green-700 dark:text-green-200">We&apos;ll create a secure wallet for you automatically</div>
                 </div>
               </div>
             </div>
@@ -330,7 +330,7 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
       {currentStep === 'profile' && (
         <Card className="glass-card">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-3 sm:mb-4 w-12 h-12 sm:w-16 sm:h-16 bg-purple-100 rounded-full flex items-center justify-center">
+            <div className="mx-auto mb-3 sm:mb-4 w-12 h-12 sm:w-16 sm:h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
               <UserPlus className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
             </div>
             <CardTitle className="text-lg sm:text-xl">Tell us your name</CardTitle>
@@ -340,14 +340,14 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
           </CardHeader>
           <CardContent className="space-y-3 sm:space-y-4">
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
             )}
 
             <div className="space-y-2">
-              <label htmlFor="displayName" className="text-sm font-medium text-gray-700">
+              <label htmlFor="displayName" className="text-sm font-medium text-gray-700 dark:text-gray-200">
                 Display Name
               </label>
               <Input
@@ -370,7 +370,7 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
               {nameError && (
                 <p id="name-error" className="text-sm text-red-600">{nameError}</p>
               )}
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 This will be displayed on your dashboard and profile
               </p>
             </div>
@@ -385,21 +385,21 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
               </div>
               
               {!walletAddress && (
-                <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                   <Loader2 className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5 animate-spin" />
                   <div className="text-sm">
-                    <div className="font-medium text-yellow-900">Setting up your wallet</div>
-                    <div className="text-yellow-700">Please wait while we create your secure wallet...</div>
+                    <div className="font-medium text-yellow-900 dark:text-yellow-300">Setting up your wallet</div>
+                    <div className="text-yellow-700 dark:text-yellow-200">Please wait while we create your secure wallet...</div>
                   </div>
                 </div>
               )}
               
               {walletAddress && (
-                <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <div className="font-medium text-green-900">Wallet Ready</div>
-                    <div className="text-green-700">Your secure wallet has been created</div>
+                    <div className="font-medium text-green-900 dark:text-green-300">Wallet Ready</div>
+                    <div className="text-green-700 dark:text-green-200">Your secure wallet has been created</div>
                   </div>
                 </div>
               )}
@@ -428,7 +428,7 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
       {currentStep === 'complete' && (
         <Card className="glass-card">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-3 sm:mb-4 w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center">
+            <div className="mx-auto mb-3 sm:mb-4 w-12 h-12 sm:w-16 sm:h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
               <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
             <CardTitle className="text-xl sm:text-2xl">
@@ -442,14 +442,14 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
             {/* User Info */}
             {user && (
               <div className="space-y-2 sm:space-y-3">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <span className="text-sm font-medium">Account</span>
                   <Badge variant="secondary" className="text-xs sm:text-sm">
                     {user.email || user.phone || 'Connected'}
                   </Badge>
                 </div>
                 
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <span className="text-sm font-medium">Wallet</span>
                   <Badge variant="secondary" className="text-xs sm:text-sm">
                     {hasWallet ? 'Connected' : 'Created'}

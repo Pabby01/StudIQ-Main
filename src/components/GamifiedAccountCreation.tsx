@@ -220,7 +220,7 @@ export default function GamifiedAccountCreation({
     <div className="relative">
       {/* Gamified Loading Overlay */}
       <div className="fixed inset-0 bg-gradient-to-br from-blue-900/95 via-purple-900/95 to-pink-900/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
+        <Card className="w-full max-w-2xl shadow-2xl border-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm">
           <CardHeader className="text-center bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-t-lg">
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">

@@ -344,10 +344,10 @@ export default function ProfilePage() {
   // Show loading while Privy is initializing
   if (!ready) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     );
@@ -359,15 +359,15 @@ export default function ProfilePage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
           {/* Header */}
           <div className="mb-6 md:mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Profile Settings</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">
               Manage your personal information and preferences
             </p>
           </div>
 
           {/* Success Message */}
           {saveSuccess && (
-            <div className="mb-6 flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+            <div className="mb-6 flex items-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-300">
               <CheckCircle className="h-5 w-5" />
               <span>Profile updated successfully!</span>
             </div>
@@ -441,14 +441,14 @@ export default function ProfilePage() {
                     
                     <div className="flex-1 space-y-4">
                       {profile && (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600 dark:text-gray-300">
                           {getGreeting(profile.displayName)}
                         </div>
                       )}
                       
                       {/* Display Name */}
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
                           Display Name
                         </label>
                         {isEditing ? (
@@ -535,12 +535,12 @@ export default function ProfilePage() {
                         maxLength={500}
                       />
                     ) : (
-                      <p className="text-sm text-gray-600 min-h-[80px]">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 min-h-[80px]">
                         {profile?.bio || 'No bio added yet'}
                       </p>
                     )}
                     {isEditing && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {editedBio.length}/500 characters
                       </p>
                     )}
@@ -548,7 +548,7 @@ export default function ProfilePage() {
 
                   {/* University */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
                       University
                     </label>
                     {isEditing ? (
@@ -559,7 +559,7 @@ export default function ProfilePage() {
                         className="text-sm"
                       />
                     ) : (
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
                         {profile?.university || 'Not set'}
                       </p>
                     )}
@@ -567,13 +567,13 @@ export default function ProfilePage() {
 
                   {/* Social Links */}
                   <div className="space-y-4">
-                    <h4 className="text-sm font-medium text-gray-700">Social Links</h4>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200">Social Links</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Twitter */}
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <Twitter className="h-4 w-4 text-blue-400" />
-                          <label className="text-sm font-medium text-gray-700">Twitter</label>
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Twitter</label>
                         </div>
                         {isEditing ? (
                           <Input
@@ -583,7 +583,7 @@ export default function ProfilePage() {
                             className="text-sm"
                           />
                         ) : (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
                             {profile?.twitter || 'Not set'}
                           </p>
                         )}
@@ -593,7 +593,7 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <Github className="h-4 w-4 text-gray-700" />
-                          <label className="text-sm font-medium text-gray-700">GitHub</label>
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-200">GitHub</label>
                         </div>
                         {isEditing ? (
                           <Input
@@ -603,7 +603,7 @@ export default function ProfilePage() {
                             className="text-sm"
                           />
                         ) : (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
                             {profile?.github || 'Not set'}
                           </p>
                         )}
@@ -613,7 +613,7 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <Linkedin className="h-4 w-4 text-blue-600" />
-                          <label className="text-sm font-medium text-gray-700">LinkedIn</label>
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-200">LinkedIn</label>
                         </div>
                         {isEditing ? (
                           <Input
@@ -623,7 +623,7 @@ export default function ProfilePage() {
                             className="text-sm"
                           />
                         ) : (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
                             {profile?.linkedin || 'Not set'}
                           </p>
                         )}
@@ -633,7 +633,7 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <GlobeIcon className="h-4 w-4 text-green-600" />
-                          <label className="text-sm font-medium text-gray-700">Website</label>
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Website</label>
                         </div>
                         {isEditing ? (
                           <Input
@@ -643,7 +643,7 @@ export default function ProfilePage() {
                             className="text-sm"
                           />
                         ) : (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
                             {profile?.website || 'Not set'}
                           </p>
                         )}
@@ -658,15 +658,15 @@ export default function ProfilePage() {
                     <h3 className="text-lg font-medium">Account Information</h3>
                     
                     {/* Email */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                       <div className="flex items-center space-x-3">
-                        <Mail className="h-5 w-5 text-gray-400" />
+                        <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                         <div>
                           <div className="flex items-center space-x-2">
                             <span className="text-sm font-medium">Email</span>
-                            <Lock className="h-3 w-3 text-gray-400" />
+                            <Lock className="h-3 w-3 text-gray-400 dark:text-gray-500" />
                           </div>
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-600 dark:text-gray-300">
                             {user?.email?.address || 'Not connected'}
                           </div>
                         </div>
@@ -675,16 +675,16 @@ export default function ProfilePage() {
                         <Badge variant={user?.email?.address ? 'default' : 'secondary'}>
                           {user?.email?.address ? 'Verified' : 'Not connected'}
                         </Badge>
-                        <span className="text-xs text-gray-400">Read-only</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">Read-only</span>
                       </div>
                     </div>
 
                     {/* Phone */}
-                    <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       {isAddingPhone ? (
                         <div className="space-y-3">
                           <div className="flex items-center space-x-3">
-                            <Phone className="h-5 w-5 text-gray-400" />
+                            <Phone className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                             <div className="text-sm font-medium">Phone</div>
                           </div>
                           <div className="space-y-2">
@@ -693,7 +693,7 @@ export default function ProfilePage() {
                               value={editedPhone}
                               onChange={(e) => setEditedPhone(e.target.value)}
                               placeholder="Enter your phone number"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200"
                             />
                             {phoneError && (
                               <p className="text-red-500 text-xs">{phoneError}</p>
@@ -718,15 +718,15 @@ export default function ProfilePage() {
                         </div>
                       ) : (
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <Phone className="h-5 w-5 text-gray-400" />
-                            <div>
-                              <div className="text-sm font-medium">Phone</div>
-                              <div className="text-sm text-gray-600">
-                                {profile?.phone || user?.phone?.number || 'Not connected'}
-                              </div>
+                        <div className="flex items-center space-x-3">
+                          <Phone className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                          <div>
+                            <div className="text-sm font-medium">Phone</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-300">
+                              {profile?.phone || user?.phone?.number || 'Not connected'}
                             </div>
                           </div>
+                        </div>
                           <button
                             onClick={() => setIsAddingPhone(true)}
                             className="text-blue-600 hover:text-blue-700 text-sm font-medium"
@@ -738,15 +738,15 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Wallet */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                       <div className="flex items-center space-x-3">
-                        <Wallet className="h-5 w-5 text-gray-400" />
+                        <Wallet className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                         <div>
                           <div className="flex items-center space-x-2">
                             <span className="text-sm font-medium">Wallet</span>
-                            <Lock className="h-3 w-3 text-gray-400" />
+                            <Lock className="h-3 w-3 text-gray-400 dark:text-gray-500" />
                           </div>
-                          <div className="text-sm text-gray-600 font-mono">
+                          <div className="text-sm text-gray-600 dark:text-gray-300 font-mono">
                             {walletAddress.displayAddress}
                           </div>
                         </div>
@@ -755,7 +755,7 @@ export default function ProfilePage() {
                         <Badge variant={walletAddress.isValid ? 'default' : 'secondary'}>
                           {walletAddress.isValid ? 'Connected' : 'Not connected'}
                         </Badge>
-                        <span className="text-xs text-gray-400">Read-only</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">Read-only</span>
                       </div>
                     </div>
                   </div>
@@ -775,24 +775,24 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Theme */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <Globe className="h-5 w-5 text-gray-400" />
+                      <Globe className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                       <div>
                         <div className="text-sm font-medium">Theme</div>
-                        <div className="text-sm text-gray-600">Light mode</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300">Light mode</div>
                       </div>
                     </div>
                     <Badge variant="secondary">Default</Badge>
                   </div>
 
                   {/* Notifications */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <Bell className="h-5 w-5 text-gray-400" />
+                      <Bell className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                       <div>
                         <div className="text-sm font-medium">Notifications</div>
-                        <div className="text-sm text-gray-600">Enabled</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300">Enabled</div>
                       </div>
                     </div>
                     <Badge variant="default">On</Badge>
@@ -813,7 +813,7 @@ export default function ProfilePage() {
                     <div className="text-2xl font-bold text-blue-600">
                       {profile ? '100%' : '0%'}
                     </div>
-                    <div className="text-sm text-gray-600">Profile Complete</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300">Profile Complete</div>
                   </div>
                   
                   <Separator />
@@ -848,7 +848,7 @@ export default function ProfilePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
                     Your account is secured with:
                   </div>
                   <div className="space-y-2 text-sm">

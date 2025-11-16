@@ -43,7 +43,7 @@ export default function MobileNavigation() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 md:hidden">
       <nav className="flex items-center justify-around py-2">
         {navigationItems.map((item) => {
           const Icon = item.icon;
@@ -56,17 +56,17 @@ export default function MobileNavigation() {
               className={cn(
                 'flex flex-col items-center justify-center px-3 py-2 text-xs font-medium transition-colors',
                 isActive
-                  ? 'text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               )}
             >
               <Icon className={cn(
                 'h-5 w-5 mb-1',
-                isActive ? 'text-blue-600' : 'text-gray-500'
+                isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
               )} />
               <span className={cn(
                 'text-xs',
-                isActive ? 'text-blue-600 font-semibold' : 'text-gray-500'
+                isActive ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-500 dark:text-gray-400'
               )}>
                 {item.name}
               </span>

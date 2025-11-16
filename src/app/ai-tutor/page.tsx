@@ -173,6 +173,13 @@ export default function AITutor() {
                       0 4px 16px rgba(0, 0, 0, 0.05),
                       inset 0 1px 0 rgba(255, 255, 255, 0.3);
         }
+        .dark .glassmorphism-sidebar {
+          background: rgba(17, 24, 39, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                      0 4px 16px rgba(147, 51, 234, 0.08),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
         .glassmorphism-card {
           background: rgba(255, 255, 255, 0.9);
           backdrop-filter: blur(6px);
@@ -180,6 +187,12 @@ export default function AITutor() {
           border: 1px solid rgba(255, 255, 255, 0.3);
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08),
                       0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .dark .glassmorphism-card {
+          background: rgba(17, 24, 39, 0.9);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4),
+                      0 2px 8px rgba(147, 51, 234, 0.08);
         }
         .touch-target {
           min-height: 48px;
@@ -192,6 +205,12 @@ export default function AITutor() {
           }
           .glassmorphism-card {
             background: rgba(255, 255, 255, 0.98);
+          }
+          .dark .glassmorphism-sidebar {
+            background: rgba(17, 24, 39, 0.95);
+          }
+          .dark .glassmorphism-card {
+            background: rgba(17, 24, 39, 0.98);
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -210,7 +229,7 @@ export default function AITutor() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               <Brain className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI Financial Tutor</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">AI Financial Tutor</h1>
             </div>
             <div className="flex items-center space-x-2">
                 {currentSession && (
@@ -223,7 +242,7 @@ export default function AITutor() {
                     variant="outline"
                     size="sm"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="md:hidden min-h-[48px] min-w-[48px] touch-manipulation hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                    className="md:hidden min-h-[48px] min-w-[48px] touch-manipulation hover:bg-gray-50 dark:hover:bg-gray-800 focus:ring-2 focus:ring-blue-500"
                   >
                     {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                   </Button>
@@ -422,17 +441,17 @@ export default function AITutor() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 transition-colors duration-200">
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 dark:hover:bg-gray-800/60 transition-colors duration-200">
                     <TrendingUp className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium text-gray-800">Investing & DeFi</span>
                     <Badge variant="secondary" className="ml-auto bg-green-100 text-green-700 border-green-200">Beginner</Badge>
                   </div>
-                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 transition-colors duration-200">
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 dark:hover:bg-gray-800/60 transition-colors duration-200">
                     <Shield className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-gray-800">Risk Management</span>
                     <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-700 border-blue-200">Essential</Badge>
                   </div>
-                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 transition-colors duration-200">
+                  <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50/60 dark:hover:bg-gray-800/60 transition-colors duration-200">
                     <Brain className="h-4 w-4 text-purple-600" />
                     <span className="text-sm font-medium text-gray-800">Financial Planning</span>
                     <Badge variant="secondary" className="ml-auto bg-purple-100 text-purple-700 border-purple-200">Core</Badge>

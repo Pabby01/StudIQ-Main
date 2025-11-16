@@ -130,11 +130,11 @@ function DashboardContent() {
   // Show loading while data is loading
   if (userDataLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading dashboard...</p>
-          <p className="text-xs text-gray-500 mt-2">Fetching your data</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading dashboard...</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Fetching your data</p>
         </div>
       </div>
     );
@@ -143,11 +143,11 @@ function DashboardContent() {
   // Show error state
   if (userDataError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center max-w-md">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Dashboard</h3>
-          <p className="text-gray-600 mb-4">{userDataError}</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading Dashboard</h3>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">{userDataError}</p>
           <Button onClick={refreshData} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
             Try Again
@@ -179,13 +179,13 @@ function DashboardContent() {
         <meta name="twitter:description" content="Monitor your financial journey with real-time portfolio tracking and personalized insights." />
         <meta name="twitter:image" content="https://studiq.app/dashboard-twitter-image.png" />
       </Head>
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
         {/* Welcome Header */}
       <div className="text-center mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
           {userProfile ? `Welcome back, ${userProfile.display_name}!` : 'Welcome back!'}
         </h1>
-        <p className="text-gray-600 text-sm md:text-base">
+        <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">
           Track your finances, learn with AI, and grow your wealth
         </p>
         {userDataError && (

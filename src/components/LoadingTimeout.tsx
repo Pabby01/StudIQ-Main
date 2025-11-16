@@ -47,21 +47,21 @@ export default function LoadingTimeout({
 
   if (hasTimedOut) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-              <Clock className="w-6 h-6 text-yellow-600" />
+            <div className="mx-auto mb-4 w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+              <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
-            <CardTitle className="text-yellow-900">Loading Timeout</CardTitle>
+            <CardTitle className="text-yellow-900 dark:text-yellow-300">Loading Timeout</CardTitle>
             <CardDescription>{message}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
                 <strong>Possible causes:</strong>
               </p>
-              <ul className="text-sm text-blue-700 mt-1 list-disc list-inside">
+              <ul className="text-sm text-blue-700 dark:text-blue-300 mt-1 list-disc list-inside">
                 <li>Slow internet connection</li>
                 <li>Database configuration issues</li>
                 <li>Authentication service problems</li>
@@ -84,10 +84,10 @@ export default function LoadingTimeout({
     <div className="relative">
       {children}
       {timeElapsed > 10000 && ( // Show warning after 10 seconds
-        <div className="fixed bottom-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 shadow-lg">
+        <div className="fixed bottom-4 right-4 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-800 rounded-lg p-3 shadow-lg">
           <div className="flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin text-yellow-600" />
-            <p className="text-sm text-yellow-800">
+            <Loader2 className="w-4 h-4 animate-spin text-yellow-600 dark:text-yellow-400" />
+            <p className="text-sm text-yellow-800 dark:text-yellow-300">
               Still loading... ({Math.round(timeElapsed / 1000)}s)
             </p>
           </div>

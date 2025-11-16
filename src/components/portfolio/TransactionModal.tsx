@@ -230,11 +230,11 @@ export function TransactionModal({
 
             {/* Solflare Wallet Integration */}
             {(type === 'send' || type === 'withdraw') && (
-              <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">Wallet Method</Label>
                   {isSolflareConnected && (
-                    <div className="flex items-center gap-1 text-xs text-green-600">
+                    <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                       <Wallet className="h-3 w-3" />
                       Solflare Ready
                     </div>
@@ -266,7 +266,7 @@ export function TransactionModal({
                       disabled={!isSolflareConnected}
                       className="w-4 h-4 text-blue-600 disabled:opacity-50"
                     />
-                    <Label htmlFor="solflare" className={`text-sm ${!isSolflareConnected ? 'text-gray-400' : ''}`}>
+                    <Label htmlFor="solflare" className={`text-sm ${!isSolflareConnected ? 'text-gray-400 dark:text-gray-500' : ''}`}>
                       Solflare Wallet {isSolflareConnected ? `(${solflareBalance.toFixed(4)} SOL)` : '(Not Connected)'}
                     </Label>
                   </div>
@@ -300,7 +300,7 @@ export function TransactionModal({
                   </SelectContent>
                 </Select>
                 {useSolflare && formData.token !== 'SOL' && (
-                  <p className="text-xs text-amber-600">
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
                     ⚠️ Solflare integration currently supports SOL only
                   </p>
                 )}
@@ -347,12 +347,12 @@ export function TransactionModal({
                   )}
                 </div>
                 {useSolflare && (
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 dark:text-gray-300">
                     Available: {solflareBalance.toFixed(6)} SOL (excluding ~0.000005 SOL for fees)
                   </p>
                 )}
                 {useSolflare && formData.amount && parseFloat(formData.amount) > solflareBalance && (
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-red-600 dark:text-red-400">
                     ⚠️ Amount exceeds available balance
                   </p>
                 )}
@@ -376,10 +376,10 @@ export function TransactionModal({
             {type === 'receive' && (
               <div className="space-y-2">
                 <Label>Your Wallet Address</Label>
-                <div className="p-3 bg-gray-100 rounded-md break-all text-sm font-mono">
+                <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-md break-all text-sm font-mono">
                   {walletAddress}
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Share this address to receive cryptocurrency
                 </p>
               </div>
@@ -414,33 +414,33 @@ export function TransactionModal({
             <div className="text-center">
               <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Confirm Transaction</h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
                 Please review your transaction details before confirming.
               </p>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-600">Type:</span>
+                <span className="text-gray-600 dark:text-gray-300">Type:</span>
                 <span className="font-medium capitalize">{type}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Wallet:</span>
+                <span className="text-gray-600 dark:text-gray-300">Wallet:</span>
                 <span className="font-medium">
                   {useSolflare ? 'Solflare' : 'Traditional'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Token:</span>
+                <span className="text-gray-600 dark:text-gray-300">Token:</span>
                 <span className="font-medium">{formData.token}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Amount:</span>
+                <span className="text-gray-600 dark:text-gray-300">Amount:</span>
                 <span className="font-medium">{formData.amount}</span>
               </div>
               {(type === 'send' || type === 'withdraw') && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">To:</span>
+                  <span className="text-gray-600 dark:text-gray-300">To:</span>
                   <span className="font-medium text-xs">
                     {formData.toAddress.slice(0, 8)}...{formData.toAddress.slice(-8)}
                   </span>
@@ -479,7 +479,7 @@ export function TransactionModal({
           <div className="text-center space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto" />
             <h3 className="text-lg font-semibold">Processing Transaction</h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-gray-300">
               Please wait while we process your transaction...
             </p>
           </div>
@@ -487,14 +487,14 @@ export function TransactionModal({
 
         {step === 'complete' && (
           <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {type === 'receive' || type === 'deposit' ? 'Ready to Receive' : 'Transaction Complete'}
               </h3>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
                 {type === 'receive' || type === 'deposit'
                   ? 'Share your wallet address to receive funds'
                   : 'Your transaction has been processed successfully'}
@@ -502,8 +502,8 @@ export function TransactionModal({
             </div>
             
             {transactionSignature && (type === 'send' || type === 'withdraw') && (
-              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                <Label className="text-sm font-medium text-gray-700">Transaction Signature</Label>
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-3">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-200">Transaction Signature</Label>
                 <div className="flex items-center space-x-2">
                   <Input
                     value={transactionSignature}
@@ -520,7 +520,7 @@ export function TransactionModal({
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </Button>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   You can use this signature to track your transaction on Solana Explorer
                 </p>
               </div>

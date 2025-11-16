@@ -89,22 +89,22 @@ export default function SavingsPools() {
         <div className="mb-6 md:mb-8">
           <div className="flex items-center space-x-3 mb-4">
             <TrendingUp className="h-8 w-8 text-green-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Savings Pools</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Savings Pools</h1>
           </div>
-          <p className="text-gray-600 max-w-2xl">
+          <p className="text-gray-600 dark:text-gray-300 max-w-2xl">
             Discover curated DeFi opportunities designed for students. Each pool is carefully selected 
             and explained by our AI to help you understand the risks and rewards.
           </p>
         </div>
 
         {/* Risk Warning */}
-        <Card className="mb-8 border-yellow-200 bg-yellow-50">
+        <Card className="mb-8 border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
           <CardContent className="pt-6">
             <div className="flex items-start space-x-3">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-yellow-800">Important Reminder</h3>
-                <p className="text-yellow-700 text-sm mt-1">
+                <h3 className="font-semibold text-yellow-800 dark:text-yellow-300">Important Reminder</h3>
+                <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-1">
                   DeFi investments carry risks. Only invest what you can afford to lose. 
                   Start small and learn as you go. Our AI tutor can help explain any concepts you don&apos;t understand.
                 </p>
@@ -134,9 +134,9 @@ export default function SavingsPools() {
               
               <CardContent className="space-y-4">
                 {/* APY Display */}
-                <div className="text-center py-4 bg-gray-50 rounded-lg">
+                <div className="text-center py-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <div className="text-3xl font-bold text-green-600">{pool.apy}</div>
-                  <div className="text-sm text-gray-600">Annual Percentage Yield</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Annual Percentage Yield</div>
                 </div>
 
                 {/* Pool Stats */}
@@ -183,9 +183,9 @@ export default function SavingsPools() {
                           />
                         </div>
                         
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                          <h4 className="font-medium text-blue-900 mb-2">AI Explanation:</h4>
-                          <p className="text-sm text-blue-800">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">AI Explanation:</h4>
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
                             This is a {pool.risk.toLowerCase()}-risk pool with {pool.apy} APY. 
                             {pool.risk === 'Low' && "Your principal is relatively safe, but returns are modest."}
                             {pool.risk === 'Medium' && "Balanced risk-reward with moderate volatility."}
