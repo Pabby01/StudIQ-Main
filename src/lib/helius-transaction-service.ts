@@ -68,8 +68,11 @@ export interface ProcessedTransaction {
 }
 
 class HeliusTransactionService {
-  private readonly apiKey = '5c12041b-d8ce-4a56-ae50-f79ce7c0b32c';
+  private readonly apiKey = process.env.NEXT_PUBLIC_HELIUS_API_KEY || '';
   private readonly baseUrl = 'https://api.helius.xyz/v0';
+  private cooldownUntil = 0;
+  private readonly CACHE_MS = 15000;
+  private cache = new Map<string, { data: ProcessedTransaction[]; ts: number }>();
 
   /**
    * Fetch transaction history for a wallet address
@@ -80,6 +83,21 @@ class HeliusTransactionService {
     before?: string
   ): Promise<ProcessedTransaction[]> {
     try {
+      if (!this.apiKey) {
+        throw new Error('Missing Helius API key');
+      }
+
+      const now = Date.now();
+      if (now < this.cooldownUntil) {
+        secureLogger.warn('Helius rate limit cooldown active, skipping request', {
+          address: address.slice(0, 8) + '...',
+          retryAt: new Date(this.cooldownUntil).toISOString()
+        });
+        const cacheKey = `${address}|${limit}|${before || ''}`;
+        const cached = this.cache.get(cacheKey);
+        return cached?.data || [];
+      }
+
       const url = new URL(`${this.baseUrl}/addresses/${address}/transactions/`);
       url.searchParams.append('api-key', this.apiKey);
       url.searchParams.append('limit', limit.toString());
@@ -102,6 +120,16 @@ class HeliusTransactionService {
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfter = parseInt(response.headers.get('Retry-After') || '30', 10);
+          const backoffMs = Math.max(1000, retryAfter * 1000);
+          this.cooldownUntil = Date.now() + backoffMs;
+          secureLogger.warn('Helius API rate limited', {
+            address: address.slice(0, 8) + '...',
+            retryAfterSeconds: retryAfter
+          });
+          throw new Error(`Helius API error: 429`);
+        }
         throw new Error(`Helius API error: ${response.status} ${response.statusText}`);
       }
 
@@ -112,7 +140,10 @@ class HeliusTransactionService {
         count: transactions.length
       });
 
-      return transactions.map(tx => this.processTransaction(tx, address));
+      const processed = transactions.map(tx => this.processTransaction(tx, address));
+      const cacheKey = `${address}|${limit}|${before || ''}`;
+      this.cache.set(cacheKey, { data: processed, ts: Date.now() });
+      return processed;
 
     } catch (error) {
       secureLogger.error('Failed to fetch transaction history from Helius', {

@@ -72,7 +72,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
       if (!isLoading && walletAddress && lastSignature) {
         pollForNewTransactions();
       }
-    }, 10000); // Poll every 10 seconds
+    }, 30000); // Poll every 30 seconds to respect rate limits
 
     return () => clearInterval(pollInterval);
   }, [walletAddress, lastSignature, isLoading]);
@@ -83,7 +83,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
       setError(null);
       
       // Use the new Helius transaction service
-      const history = await heliusTransactionService.getTransactionHistory(walletAddress, 100);
+      const history = await heliusTransactionService.getTransactionHistory(walletAddress, 50);
       setTransactions(history);
       
       // Set the last signature for polling
@@ -91,7 +91,12 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
         setLastSignature(history[0].signature);
       }
     } catch (err) {
-      setError('Failed to load transaction history');
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('429')) {
+        setError('Rate limited by Solana indexer. Please retry in a minute.');
+      } else {
+        setError('Failed to load transaction history');
+      }
       console.error('Error loading transactions:', err);
     } finally {
       setIsLoading(false);
