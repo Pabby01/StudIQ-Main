@@ -291,13 +291,17 @@ export async function PUT(request: NextRequest) {
     }
 
     try {
-      // Use upsert to handle both create and update operations
-      // This prevents "No data found" errors when profile doesn't exist
-      const profile = await UserProfileManager.upsertProfile({
-        user_id: sanitizedUserId,
-        ...sanitizedUpdates
-      })
-      
+      // If explicit upsert flag is provided, perform upsert
+      if ((updateData as any)?.upsert) {
+        const profile = await UserProfileManager.upsertProfile({
+          user_id: sanitizedUserId,
+          ...sanitizedUpdates
+        })
+        return NextResponse.json({ profile }, { status: 200 })
+      }
+
+      // Otherwise perform a standard update to avoid display_name requirement on upsert
+      const profile = await UserProfileManager.updateProfile(sanitizedUserId, sanitizedUpdates)
       return NextResponse.json({ profile }, { status: 200 })
     } finally {
       await cleanupSecureAuth()
