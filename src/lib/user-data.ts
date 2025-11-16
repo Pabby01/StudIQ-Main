@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { UserProfileManager, UserStatsManager, UserPreferencesManager } from './database-utils'
 import { ClientUserProfileManager, ClientUserPreferencesManager } from './client-database-utils'
 import { secureLogger, secureLogUtils } from './secure-logger'
@@ -136,12 +137,10 @@ export const userProfileManager = {
   getProfile: async (walletAddress: string): Promise<UserProfile | null> => {
     try {
       const normalizedAddress = normalizeWalletAddress(walletAddress)
-      // First try to find by wallet address
-      const dbProfile = await UserProfileManager.getProfile(normalizedAddress)
+      const dbProfile = await ClientUserProfileManager.getProfile(normalizedAddress)
       if (!dbProfile) return null
 
-      // Get user preferences
-      const dbPrefs = await UserPreferencesManager.getPreferences(normalizedAddress)
+      const dbPrefs = await ClientUserPreferencesManager.getPreferences(normalizedAddress)
       
       return await convertDbProfileToLegacy(
         {
@@ -173,7 +172,7 @@ export const userProfileManager = {
   saveProfile: async (profile: UserProfile): Promise<void> => {
     try {
       const normalizedAddress = normalizeWalletAddress(profile.walletAddress)
-      await UserProfileManager.updateProfile(normalizedAddress, {
+      await ClientUserProfileManager.updateProfile(normalizedAddress, {
         display_name: profile.displayName,
         email: profile.email || null,
         phone: profile.phone || null,
@@ -182,8 +181,7 @@ export const userProfileManager = {
         bio: profile.bio || null
       })
 
-      // Update preferences
-      await UserPreferencesManager.updatePreferences(normalizedAddress, {
+      await ClientUserPreferencesManager.updatePreferences(normalizedAddress, {
         theme: profile.preferences.theme === 'dark' ? 'dark' : 'light',
         notifications_enabled: profile.preferences.notifications,
         language: profile.preferences.language
@@ -311,7 +309,7 @@ export const userProfileManager = {
   // Delete user profile
   deleteProfile: async (walletAddress: string): Promise<void> => {
     try {
-      await UserProfileManager.deleteProfile(walletAddress)
+      await ClientUserProfileManager.deleteProfile(walletAddress)
     } catch (error) {
       secureLogger.error('Error deleting user profile', {
         walletAddress: secureLogUtils.maskWalletAddress(walletAddress),

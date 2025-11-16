@@ -254,10 +254,11 @@ export async function validatePrivySession(
       // If token parsing fails, use requestedUserId
     }
     
+    const isRequestedWalletAddress = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(requestedUserId)
     return {
       success: true,
       userId: finalUserId,
-      userWalletAddress: finalUserId
+      userWalletAddress: isRequestedWalletAddress ? requestedUserId : finalUserId
     }
 
   } catch (error) {
@@ -331,8 +332,10 @@ export async function validateUserAuthWithRLS(
     // For profile creation of new Privy users, skip user access validation
     // This allows new users to create their initial profile
     if (!isProfileCreation) {
-      // Additional security: validate user access for existing operations
-      validateUserAccess(authResult.userId!, requestedUserId, operation)
+      const isTargetOwnId = requestedUserId === authResult.userId || requestedUserId === authResult.userWalletAddress
+      if (!isTargetOwnId) {
+        validateUserAccess(authResult.userId!, requestedUserId, operation)
+      }
     } else {
       secureLogger.info('Skipping user access validation for new user profile creation')
     }
