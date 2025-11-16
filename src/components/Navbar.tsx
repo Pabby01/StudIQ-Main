@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import WalletConnectButton from './WalletConnectButton';
 import { Menu, Home, Brain, Coins, Store, ShoppingBagIcon, TrendingUp } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -19,6 +20,7 @@ const navigation = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm">
@@ -53,8 +55,11 @@ export function Navbar() {
             })}
           </div>
 
-          {/* Desktop Wallet Button */}
-          <div className="hidden lg:block">
+          {/* Desktop Wallet Button with Display Name */}
+          <div className="hidden lg:flex items-center gap-3">
+            {isAuthenticated && user?.displayName && (
+              <span className="text-gray-700 font-medium truncate max-w-[220px]">{user.displayName}</span>
+            )}
             <WalletConnectButton />
           </div>
 
@@ -74,6 +79,9 @@ export function Navbar() {
                 </Link>
               );
             })}
+            {isAuthenticated && user?.displayName && (
+              <span className="text-gray-700 font-medium truncate max-w-[160px]">{user.displayName}</span>
+            )}
             <WalletConnectButton />
           </div>
 

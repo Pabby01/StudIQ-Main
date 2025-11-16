@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/components/AppLayout';
 import AuthWrapper from '@/components/AuthWrapper';
+import { useAuth } from '@/hooks/useAuth';
 import { secureLogger } from '@/lib/secure-logger';
 import { userProfileManager, patchProfile, validateProfileUpdate, formatDisplayName, generateAvatar, getGreeting, UserProfile } from '@/lib/user-data';
 import { validateImageFile, getUploadErrorMessage } from '@/lib/image-upload';
@@ -45,6 +46,7 @@ export default function ProfilePage() {
   const { wallets } = useWallets();
   const walletAddress = useWalletAddress();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { refreshUser } = useAuth();
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -176,6 +178,7 @@ export default function ProfilePage() {
         setIsEditing(false);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
+        await refreshUser();
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Failed to update profile';
@@ -286,7 +289,7 @@ export default function ProfilePage() {
       // Upload image
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('walletAddress', walletAddress.address!);
+      formData.append('user_id', walletAddress.address!);
 
       const response = await fetch('/api/upload/image', {
         method: 'POST',
@@ -305,7 +308,7 @@ export default function ProfilePage() {
       // Update profile with new avatar URL using comprehensive patch function
       if (profile) {
         const updatedProfile = await patchProfile(walletAddress.address!, {
-          avatarUrl: result.url
+          avatarUrl: result.imageUrl || result.url
         }, {
           validate: true, // Validate the avatar URL
           preserveSocial: true // Preserve existing social fields
@@ -315,6 +318,7 @@ export default function ProfilePage() {
           setProfile(updatedProfile);
           setSaveSuccess(true);
           setTimeout(() => setSaveSuccess(false), 3000);
+          await refreshUser();
         }
       }
 

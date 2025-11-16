@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (contentType.includes('multipart/form-data')) {
       // Parse as FormData
       const formData = await request.formData();
-      userId = formData.get('user_id') as string;
+      userId = (formData.get('user_id') as string) || (formData.get('walletAddress') as string);
       file = formData.get('image') as File;
       uploadType = formData.get('type') as string || 'profile';
     } else if (contentType.includes('application/json')) {
@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       imageUrl: imageUrl,
+      url: imageUrl,
       fileName: fileName,
       fileSize: fileSize,
       uploadType: uploadType
