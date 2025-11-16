@@ -158,6 +158,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `!function(){try{var k='studiq_theme';var t=localStorage.getItem(k);var p=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;var d=t==='dark'||(t==='system'&&p);document.documentElement.classList.toggle('dark',!!d);}catch(e){}}();`
+          }}
+        />
         <ErrorBoundary>
           <AppInitializer>
             <PrivyClientProvider>

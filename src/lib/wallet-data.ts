@@ -177,11 +177,22 @@ class WalletDataService {
       return realBalance;
 
     } catch (error) {
-      secureLogger.error('Failed to fetch wallet balance', error);
-      
-      // For mainnet, we should not fall back to mock data
-      // Instead, throw the error to be handled by the calling component
-      throw new Error(`Failed to fetch wallet balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      secureLogger.warn('Failed to fetch wallet balance from Helius, using fallback');
+      try {
+        const publicKey = new PublicKey(walletAddress);
+        const lamports = await this.connection.getBalance(publicKey);
+        const solAmount = lamports / LAMPORTS_PER_SOL;
+        const solPrice = await this.getSolPrice();
+        return {
+          solBalance: solAmount,
+          totalUsdValue: solAmount * solPrice,
+          tokens: [],
+          lastUpdated: new Date(),
+        };
+      } catch (fallbackError) {
+        secureLogger.error('Fallback wallet balance fetch failed', fallbackError);
+        throw new Error(`Failed to fetch wallet balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
   }
 
@@ -247,10 +258,8 @@ class WalletDataService {
       return transactions;
 
     } catch (error) {
-      secureLogger.error('Failed to fetch wallet transactions', error);
-      
-      // For mainnet, we should not fall back to mock data
-      throw new Error(`Failed to fetch wallet transactions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      secureLogger.warn('Failed to fetch wallet transactions from Helius, returning empty list');
+      return [];
     }
   }
 

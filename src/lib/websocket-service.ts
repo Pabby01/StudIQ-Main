@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { secureLogger } from './secure-logger';
 
 export interface MarketData {
@@ -43,13 +44,13 @@ export interface WebSocketMessage {
 class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectInterval = 5000;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = 2;
   private reconnectAttempts = 0;
   private messageHandlers: Map<string, Set<(data: unknown) => void>> = new Map();
   private connectionPromise: Promise<void> | null = null;
   private isIntentionallyClosed = false;
 
-  constructor(private url: string = 'wss://api.studiq.com/ws') {}
+  constructor(private url: string = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_WS_URL) || 'wss://api.studiq.com/ws') {}
 
   // Connect to WebSocket server
   async connect(): Promise<void> {
@@ -93,7 +94,7 @@ class WebSocketService {
         };
 
         this.ws.onerror = (error) => {
-          secureLogger.error('WebSocket error', error);
+          secureLogger.warn('WebSocket error', error);
           this.connectionPromise = null;
           reject(error);
         };

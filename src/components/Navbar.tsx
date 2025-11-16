@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import WalletConnectButton from './WalletConnectButton';
@@ -22,17 +22,31 @@ const navigation = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { isAuthenticated, user, updatePreferences } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
-  const applyTheme = (theme: 'light' | 'dark' | 'system' | undefined) => {
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+
+  const applyTheme = (nextTheme: 'light' | 'dark' | 'system') => {
     const root = document.documentElement;
-    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDark = nextTheme === 'dark' || (nextTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     root.classList.toggle('dark', !!isDark);
+    try {
+      localStorage.setItem('studiq_theme', nextTheme);
+    } catch {}
+    setTheme(nextTheme);
   };
 
-  if (typeof window !== 'undefined') {
-    applyTheme((user as any)?.preferences?.theme as any);
-  }
+  useEffect(() => {
+    try {
+      const saved = (localStorage.getItem('studiq_theme') as 'light' | 'dark' | 'system' | null) || null;
+      const initial = saved ?? 'system';
+      setTheme(initial);
+      applyTheme(initial);
+    } catch {
+      setTheme('system');
+      applyTheme('system');
+    }
+  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm">
@@ -72,22 +86,18 @@ export function Navbar() {
             {isAuthenticated && user?.displayName && (
               <span className="text-gray-700 font-medium truncate max-w-[220px]">{user.displayName}</span>
             )}
-            {isAuthenticated && (
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Toggle theme"
-                onClick={async () => {
-                  const current = (user as any)?.preferences?.theme as 'light' | 'dark' | 'system' | undefined;
-                  const next = current === 'dark' ? 'light' : 'dark';
-                  applyTheme(next);
-                  try { await updatePreferences({ theme: next }); } catch {}
-                }}
-              >
-                <Sun className="h-4 w-4 hidden dark:block" />
-                <Moon className="h-4 w-4 dark:hidden" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Toggle theme"
+              onClick={() => {
+                const next = theme === 'dark' ? 'light' : 'dark';
+                applyTheme(next);
+              }}
+            >
+              <Sun className="h-4 w-4 hidden dark:block" />
+              <Moon className="h-4 w-4 dark:hidden" />
+            </Button>
             <WalletConnectButton />
           </div>
 
@@ -110,22 +120,18 @@ export function Navbar() {
             {isAuthenticated && user?.displayName && (
               <span className="text-gray-700 font-medium truncate max-w-[160px]">{user.displayName}</span>
             )}
-            {isAuthenticated && (
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Toggle theme"
-                onClick={async () => {
-                  const current = (user as any)?.preferences?.theme as 'light' | 'dark' | 'system' | undefined;
-                  const next = current === 'dark' ? 'light' : 'dark';
-                  applyTheme(next);
-                  try { await updatePreferences({ theme: next }); } catch {}
-                }}
-              >
-                <Sun className="h-4 w-4 hidden dark:block" />
-                <Moon className="h-4 w-4 dark:hidden" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Toggle theme"
+              onClick={() => {
+                const next = theme === 'dark' ? 'light' : 'dark';
+                applyTheme(next);
+              }}
+            >
+              <Sun className="h-4 w-4 hidden dark:block" />
+              <Moon className="h-4 w-4 dark:hidden" />
+            </Button>
             <WalletConnectButton />
           </div>
 
