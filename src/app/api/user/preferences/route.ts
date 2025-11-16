@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
-import { UserPreferencesManager } from '@/lib/database-utils'
+import { UserPreferencesManager, UserProfileManager } from '@/lib/database-utils'
 import { secureLogger } from '@/lib/secure-logger'
 import { 
   validateUserAuthWithRLS, 
@@ -151,14 +151,27 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      // Determine authoritative user_id and fallback to wallet-address profile if needed
+      let targetUserId = sanitizedData.user_id
+      const existingProfile = await UserProfileManager.getProfile(targetUserId)
+      if (!existingProfile && authResult.userWalletAddress) {
+        const walletProfile = await UserProfileManager.getProfile(authResult.userWalletAddress)
+        if (walletProfile) {
+          targetUserId = authResult.userWalletAddress
+        }
+      }
+
       // Check if preferences already exist
-      const existingPreferences = await UserPreferencesManager.getPreferences(sanitizedData.user_id)
+      const existingPreferences = await UserPreferencesManager.getPreferences(targetUserId)
       if (existingPreferences) {
         return NextResponse.json({ preferences: existingPreferences }, { status: 200 })
       }
 
       // Create the user preferences using the server-side admin client
-      const preferences = await UserPreferencesManager.createPreferences(sanitizedData)
+      const preferences = await UserPreferencesManager.createPreferences({
+        ...sanitizedData,
+        user_id: targetUserId
+      })
       
       return NextResponse.json({ preferences }, { status: 201 })
     } finally {
@@ -262,17 +275,30 @@ export async function PUT(request: NextRequest) {
     }
 
     try {
+      // Determine authoritative user_id and fallback to wallet-address profile if needed
+      let targetUserId = sanitizedPreferencesData.user_id
+      const existingProfile = await UserProfileManager.getProfile(targetUserId)
+      if (!existingProfile && authResult.userWalletAddress) {
+        const walletProfile = await UserProfileManager.getProfile(authResult.userWalletAddress)
+        if (walletProfile) {
+          targetUserId = authResult.userWalletAddress
+        }
+      }
+
       // Check if this is an upsert operation
       if (sanitizedPreferencesData.upsert) {
         // Remove the upsert flag before passing to the database
         const { upsert, ...cleanPreferencesData } = sanitizedPreferencesData
-        const preferences = await UserPreferencesManager.upsertPreferences(cleanPreferencesData)
+        const preferences = await UserPreferencesManager.upsertPreferences({
+          ...cleanPreferencesData,
+          user_id: targetUserId
+        })
         return NextResponse.json({ preferences }, { status: 200 })
       }
 
       // Regular update operation
       const { user_id, ...updates } = sanitizedPreferencesData
-      const sanitizedUserId = sanitizeInput(user_id, 100)
+      const sanitizedUserId = sanitizeInput(targetUserId, 100)
       const preferences = await UserPreferencesManager.updatePreferences(sanitizedUserId, updates)
       
       return NextResponse.json({ preferences }, { status: 200 })

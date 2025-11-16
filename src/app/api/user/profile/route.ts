@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { UserProfileManager } from '@/lib/database-utils'
@@ -56,8 +57,11 @@ export async function GET(request: NextRequest) {
       // Sanitize the user ID input
       const sanitizedUserId = sanitizeInput(userId, 100)
 
-      // Get the user profile
-      const profile = await UserProfileManager.getProfile(sanitizedUserId)
+      // Get the user profile (support DID and wallet-address identifiers)
+      let profile = await UserProfileManager.getProfile(sanitizedUserId)
+      if (!profile && authResult.userWalletAddress) {
+        profile = await UserProfileManager.getProfile(authResult.userWalletAddress)
+      }
     
       if (!profile) {
         return NextResponse.json(
@@ -247,7 +251,7 @@ export async function PUT(request: NextRequest) {
     const authoritativeUserId = authResult.userId || updateData.user_id;
 
     // Extract user_id and sanitize the rest of the update data
-    const { ...updates } = updateData
+    const { user_id: requestedUserId, upsert: upsertFlag, ...updates } = updateData
     const sanitizedUserId = sanitizeInput(authoritativeUserId, 100)
     
     // Sanitize update fields
@@ -292,7 +296,7 @@ export async function PUT(request: NextRequest) {
 
     try {
       // If explicit upsert flag is provided, perform upsert
-      if ((updateData as any)?.upsert) {
+      if (upsertFlag) {
         const profile = await UserProfileManager.upsertProfile({
           user_id: sanitizedUserId,
           ...sanitizedUpdates
@@ -300,9 +304,18 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ profile }, { status: 200 })
       }
 
-      // Otherwise perform a standard update to avoid display_name requirement on upsert
-      const profile = await UserProfileManager.updateProfile(sanitizedUserId, sanitizedUpdates)
-      return NextResponse.json({ profile }, { status: 200 })
+      // Otherwise perform a standard update; if no row found, fallback to wallet-address-based row
+      try {
+        const profile = await UserProfileManager.updateProfile(sanitizedUserId, sanitizedUpdates)
+        return NextResponse.json({ profile }, { status: 200 })
+      } catch (e: any) {
+        const msg = e instanceof Error ? e.message : String(e)
+        if (msg.includes('No data found') && authResult.userWalletAddress) {
+          const fallbackProfile = await UserProfileManager.updateProfile(authResult.userWalletAddress, sanitizedUpdates)
+          return NextResponse.json({ profile: fallbackProfile }, { status: 200 })
+        }
+        throw e
+      }
     } finally {
       await cleanupSecureAuth()
     }
