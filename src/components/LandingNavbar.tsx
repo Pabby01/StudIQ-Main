@@ -71,7 +71,7 @@ export function LandingNavbar() {
             ))}
             
             {/* CTA Button */}
-            <Link href="/dashboard">
+            <Link href="/onboarding">
               <Button className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-glow-blue transition-all duration-300 hover:scale-105 hover:shadow-glow-purple group">
                 <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <span className="relative z-10 flex items-center space-x-2">
