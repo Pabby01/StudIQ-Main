@@ -75,7 +75,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
     }, 30000); // Poll every 30 seconds to respect rate limits
 
     return () => clearInterval(pollInterval);
-  }, [walletAddress, lastSignature, isLoading]);
+  }, [walletAddress, lastSignature]);
 
   const loadTransactionHistory = async () => {
     try {
@@ -83,6 +83,9 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
       setError(null);
       
       // Use the new Helius transaction service
+      if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(walletAddress)) {
+        throw new Error('Invalid Solana wallet address');
+      }
       const history = await heliusTransactionService.getTransactionHistory(walletAddress, 50);
       setTransactions(history);
       

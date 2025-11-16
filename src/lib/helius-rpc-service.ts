@@ -394,17 +394,15 @@ class HeliusRPCService {
     }
     
     try {
-      // Try Jupiter API first
-      const jupiterPrice = await this.getJupiterPrice(tokenSymbol);
-      if (jupiterPrice > 0) {
-        this.priceCache.set(cacheKey, { price: jupiterPrice, timestamp: Date.now() });
-        return jupiterPrice;
-      }
-      
-      // Fallback to CoinGecko
       const coingeckoPrice = await this.getCoinGeckoPrice(tokenSymbol);
-      this.priceCache.set(cacheKey, { price: coingeckoPrice, timestamp: Date.now() });
-      return coingeckoPrice;
+      if (coingeckoPrice > 0) {
+        this.priceCache.set(cacheKey, { price: coingeckoPrice, timestamp: Date.now() });
+        return coingeckoPrice;
+      }
+
+      const jupiterPrice = await this.getJupiterPrice(tokenSymbol);
+      this.priceCache.set(cacheKey, { price: jupiterPrice, timestamp: Date.now() });
+      return jupiterPrice;
       
     } catch (error) {
       secureLogger.warn('Failed to get token price', { error, tokenSymbol });

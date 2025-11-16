@@ -73,6 +73,7 @@ class HeliusTransactionService {
   private cooldownUntil = 0;
   private readonly CACHE_MS = 15000;
   private cache = new Map<string, { data: ProcessedTransaction[]; ts: number }>();
+  private inFlight = new Map<string, Promise<ProcessedTransaction[]>>();
 
   /**
    * Fetch transaction history for a wallet address
@@ -87,6 +88,10 @@ class HeliusTransactionService {
         throw new Error('Missing Helius API key');
       }
 
+      if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+        throw new Error('Invalid Solana wallet address');
+      }
+
       const now = Date.now();
       if (now < this.cooldownUntil) {
         secureLogger.warn('Helius rate limit cooldown active, skipping request', {
@@ -97,6 +102,10 @@ class HeliusTransactionService {
         const cached = this.cache.get(cacheKey);
         return cached?.data || [];
       }
+
+      const cacheKey = `${address}|${limit}|${before || ''}`;
+      const existing = this.inFlight.get(cacheKey);
+      if (existing) return existing;
 
       const url = new URL(`${this.baseUrl}/addresses/${address}/transactions/`);
       url.searchParams.append('api-key', this.apiKey);
@@ -112,38 +121,44 @@ class HeliusTransactionService {
         before
       });
 
-      const response = await fetch(url.toString(), {
+      const request = fetch(url.toString(), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          const retryAfter = parseInt(response.headers.get('Retry-After') || '30', 10);
-          const backoffMs = Math.max(1000, retryAfter * 1000);
-          this.cooldownUntil = Date.now() + backoffMs;
-          secureLogger.warn('Helius API rate limited', {
-            address: address.slice(0, 8) + '...',
-            retryAfterSeconds: retryAfter
-          });
-          throw new Error(`Helius API error: 429`);
+      this.inFlight.set(cacheKey, request.then(async (response) => {
+        if (!response.ok) {
+          if (response.status === 429) {
+            const retryAfter = parseInt(response.headers.get('Retry-After') || '30', 10);
+            const backoffMs = Math.max(1000, retryAfter * 1000);
+            this.cooldownUntil = Date.now() + backoffMs;
+            secureLogger.warn('Helius API rate limited', {
+              address: address.slice(0, 8) + '...',
+              retryAfterSeconds: retryAfter
+            });
+            throw new Error('Helius API error: 429');
+          }
+          if (response.status === 400) {
+            throw new Error('Helius API error: 400');
+          }
+          throw new Error(`Helius API error: ${response.status} ${response.statusText}`);
         }
-        throw new Error(`Helius API error: ${response.status} ${response.statusText}`);
-      }
 
-      const transactions: HeliusTransaction[] = await response.json();
-      
+        const transactions: HeliusTransaction[] = await response.json();
+        const processed = transactions.map(tx => this.processTransaction(tx, address));
+        this.cache.set(cacheKey, { data: processed, ts: Date.now() });
+        return processed;
+      }).finally(() => {
+        this.inFlight.delete(cacheKey);
+      }));
+
+      const result = await this.inFlight.get(cacheKey)!;
       secureLogger.info('Successfully fetched transactions from Helius', {
         address: address.slice(0, 8) + '...',
-        count: transactions.length
+        count: result.length
       });
-
-      const processed = transactions.map(tx => this.processTransaction(tx, address));
-      const cacheKey = `${address}|${limit}|${before || ''}`;
-      this.cache.set(cacheKey, { data: processed, ts: Date.now() });
-      return processed;
+      return result;
 
     } catch (error) {
       secureLogger.error('Failed to fetch transaction history from Helius', {
