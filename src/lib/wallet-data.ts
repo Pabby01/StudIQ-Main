@@ -95,14 +95,23 @@ class WalletDataService {
   private readonly CACHE_DURATION = 60000; // 1 minute cache
   private readonly rpcEndpoints: string[];
   private readonly priceEndpoints: { coingecko: string; jupiter: string };
+  private currentRpcIndex = 0;
 
   constructor() {
     // Initialize RPC endpoints from environment
-    this.rpcEndpoints = getSolanaRpcEndpoints();
+    const envRpcs = getSolanaRpcEndpoints();
+    const defaults = ['https://api.mainnet-beta.solana.org'];
+    const merged = [...envRpcs, ...defaults.filter(u => !envRpcs.includes(u))];
+    this.rpcEndpoints = merged;
     this.priceEndpoints = getPriceApiEndpoints();
     
     // Initialize with the first RPC endpoint, fallback to others if needed
     this.connection = new Connection(this.rpcEndpoints[0], 'confirmed');
+  }
+
+  private switchToNextRpc() {
+    this.currentRpcIndex = (this.currentRpcIndex + 1) % this.rpcEndpoints.length;
+    this.connection = new Connection(this.rpcEndpoints[this.currentRpcIndex], 'confirmed');
   }
 
   // Get SOL price from CoinGecko
@@ -179,6 +188,7 @@ class WalletDataService {
     } catch (error) {
       secureLogger.warn('Failed to fetch wallet balance from Helius, using fallback');
       try {
+        this.switchToNextRpc();
         const publicKey = new PublicKey(walletAddress);
         const lamports = await this.connection.getBalance(publicKey);
         const solAmount = lamports / LAMPORTS_PER_SOL;

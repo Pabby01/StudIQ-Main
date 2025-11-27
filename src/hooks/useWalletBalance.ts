@@ -49,6 +49,8 @@ const notifySubscribers = (newState: WalletBalanceState) => {
   subscribers.forEach(callback => callback(newState));
 };
 
+let rateLimitCooldownUntil = 0;
+
 /**
  * Shared wallet balance hook with real-time synchronization
  * Provides consistent balance data across dashboard and portfolio components
@@ -90,6 +92,10 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
   // Refresh balance data
   const refreshBalance = useCallback(async () => {
     if (!authenticated || !walletAddress.isValid || isLoadingRef.current) {
+      return;
+    }
+
+    if (Date.now() < rateLimitCooldownUntil) {
       return;
     }
 
@@ -138,6 +144,10 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
         error: errorMessage,
         walletAddress: walletAddress.address?.slice(0, 8) + '...',
       });
+
+      if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('rate limit') || errorMessage.includes('max usage')) {
+        rateLimitCooldownUntil = Date.now() + 5 * 60 * 1000;
+      }
 
       const errorState: WalletBalanceState = {
         ...globalBalanceState,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Helius RPC Service for Mainnet Operations
@@ -70,6 +71,8 @@ class HeliusRPCService {
   private config: HeliusConfig;
   private priceCache: Map<string, { price: number; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 60000; // 1 minute cache
+  private cooldownUntil = 0;
+  private fallbackRpcUrl: string | null = null;
 
   constructor(config: HeliusConfig) {
     this.config = config;
@@ -81,6 +84,9 @@ class HeliusRPCService {
       commitment: 'confirmed',
       confirmTransactionInitialTimeout: 60000,
     });
+
+    const envFallbacks = (process.env.NEXT_PUBLIC_SOLANA_RPC_FALLBACKS || '').split(',').map(s => s.trim()).filter(Boolean);
+    this.fallbackRpcUrl = envFallbacks.length > 0 ? envFallbacks[0] : 'https://api.mainnet-beta.solana.org';
 
     secureLogger.info('Helius RPC Service initialized', {
       cluster: config.cluster,
@@ -96,7 +102,23 @@ class HeliusRPCService {
       const publicKey = new PublicKey(walletAddress);
       
       // Get SOL balance
-      const solBalance = await this.connection.getBalance(publicKey);
+      if (Date.now() < this.cooldownUntil && this.fallbackRpcUrl) {
+        this.connection = new Connection(this.fallbackRpcUrl, { commitment: 'confirmed' });
+      }
+      let solBalance: number;
+      try {
+        solBalance = await this.connection.getBalance(publicKey);
+      } catch (e: any) {
+        const msg = e && e.message ? String(e.message) : '';
+        const isRateLimited = msg.includes('429') || msg.includes('max usage') || msg.includes('-32429');
+        if (isRateLimited && this.fallbackRpcUrl) {
+          this.cooldownUntil = Date.now() + 5 * 60 * 1000;
+          this.connection = new Connection(this.fallbackRpcUrl, { commitment: 'confirmed' });
+          solBalance = await this.connection.getBalance(publicKey);
+        } else {
+          throw e;
+        }
+      }
       const solAmount = solBalance / LAMPORTS_PER_SOL;
       
       // Get SOL price
@@ -188,7 +210,23 @@ class HeliusRPCService {
       const publicKey = new PublicKey(walletAddress);
       
       // Get transaction signatures
-      const signatures = await this.connection.getSignaturesForAddress(publicKey, { limit });
+      if (Date.now() < this.cooldownUntil && this.fallbackRpcUrl) {
+        this.connection = new Connection(this.fallbackRpcUrl, { commitment: 'confirmed' });
+      }
+      let signatures;
+      try {
+        signatures = await this.connection.getSignaturesForAddress(publicKey, { limit });
+      } catch (e: any) {
+        const msg = e && e.message ? String(e.message) : '';
+        const isRateLimited = msg.includes('429') || msg.includes('max usage') || msg.includes('-32429');
+        if (isRateLimited && this.fallbackRpcUrl) {
+          this.cooldownUntil = Date.now() + 5 * 60 * 1000;
+          this.connection = new Connection(this.fallbackRpcUrl, { commitment: 'confirmed' });
+          signatures = await this.connection.getSignaturesForAddress(publicKey, { limit });
+        } else {
+          throw e;
+        }
+      }
       
       const transactions: TransactionData[] = [];
       
