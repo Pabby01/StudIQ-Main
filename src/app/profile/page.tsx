@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/components/AppLayout';
 import AuthWrapper from '@/components/AuthWrapper';
@@ -423,9 +423,13 @@ export default function ProfilePage() {
                             sizes="80px"
                           />
                         ) : (
-                          <AvatarFallback className="text-lg font-semibold bg-blue-100 text-blue-600">
-                            {profile ? generateAvatar(profile.displayName) : 'U'}
-                          </AvatarFallback>
+                          <Image
+                            src={generateAvatar(profile?.displayName || 'U')}
+                            alt="Default Avatar"
+                            className="h-full w-full object-cover"
+                            fill
+                            sizes="80px"
+                          />
                         )}
                       </Avatar>
                       

@@ -177,55 +177,9 @@ export function useOptimizedAuth(): UseOptimizedAuthReturn {
 
       secureLogger.info('🚀 OPTIMIZED - Starting login process')
       
-      // Step 1: Authenticate with Privy
+      // Step 1: Authenticate with Privy (subsequent steps handled by effect)
       await privyLogin()
       setState(prev => ({ ...prev, progress: 20 }))
-
-      // Wait for authentication to complete
-      let authAttempts = 0
-      while (!authenticated && authAttempts < 10) {
-        await new Promise(resolve => setTimeout(resolve, 500))
-        authAttempts++
-      }
-
-      if (!authenticated || !user?.id) {
-        throw new Error('Authentication failed')
-      }
-
-      // Step 2: Handle wallet creation
-      let walletAddress = getWalletAddress(user)
-      
-      if (!walletAddress) {
-        walletAddress = await createWalletOptimized(user.id)
-      } else {
-        setState(prev => ({ ...prev, progress: 60 }))
-      }
-
-      if (!walletAddress) {
-        throw new Error('Failed to create or find wallet')
-      }
-
-      // Step 3: Initialize user data in background (non-blocking)
-      initializeUserData(user.id, walletAddress).catch(error => {
-        secureLogger.warn('Background user initialization failed:', error)
-        // Don't block login for this
-      })
-
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        isAuthenticated: true,
-        user,
-        walletAddress,
-        stage: 'complete',
-        progress: 100
-      }))
-
-      secureLogger.info('🚀 OPTIMIZED - Login completed successfully:', {
-        userId: user.id,
-        walletAddress,
-        hasWallet: !!walletAddress
-      })
 
     } catch (error) {
       secureLogger.error('🚀 OPTIMIZED - Login failed:', error)
@@ -233,8 +187,8 @@ export function useOptimizedAuth(): UseOptimizedAuthReturn {
         ...prev,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Login failed',
-        stage: 'idle',
-        progress: 0
+        stage: 'connecting',
+        progress: 10
       }))
     }
   }, [privyLogin, authenticated, user, getWalletAddress, createWalletOptimized, initializeUserData])
@@ -282,12 +236,12 @@ export function useOptimizedAuth(): UseOptimizedAuthReturn {
   // Update state when Privy state changes
   useEffect(() => {
     if (ready && authenticated && user) {
-      const walletAddress = getWalletAddress(user)
+      const detectedAddress = getWalletAddress(user)
       setState(prev => ({
         ...prev,
         isAuthenticated: true,
         user,
-        walletAddress
+        walletAddress: prev.walletAddress || detectedAddress
       }))
     } else if (ready && !authenticated) {
       setState(prev => ({
@@ -298,6 +252,37 @@ export function useOptimizedAuth(): UseOptimizedAuthReturn {
       }))
     }
   }, [ready, authenticated, user, getWalletAddress])
+
+  useEffect(() => {
+    const proceed = async () => {
+      if (!authenticated || !user?.id) return
+      if (state.stage === 'complete') return
+
+      let addr = state.walletAddress || getWalletAddress(user)
+      if (!addr) {
+        try {
+          addr = await createWalletOptimized(user.id)
+        } catch (e) {
+          secureLogger.warn('Wallet creation deferred:', e instanceof Error ? e.message : 'Unknown')
+        }
+      }
+
+      if (addr) {
+        setState(prev => ({ ...prev, walletAddress: addr }))
+        initializeUserData(user.id, addr).catch(error => {
+          secureLogger.warn('Background user initialization failed:', error)
+        })
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          isAuthenticated: true,
+          stage: 'complete',
+          progress: 100
+        }))
+      }
+    }
+    proceed()
+  }, [authenticated, user?.id, state.stage, state.walletAddress, getWalletAddress, createWalletOptimized, initializeUserData])
 
   return {
     ...state,

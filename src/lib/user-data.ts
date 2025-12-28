@@ -616,12 +616,12 @@ export const getGreeting = (name: string): string => {
 };
 
 export const generateAvatar = (name: string): string => {
-  // Generate a simple avatar based on initials
   const initials = name
+    .trim()
     .split(' ')
     .map(word => word.charAt(0).toUpperCase())
     .join('')
-    .slice(0, 2);
-  
-  return initials;
+    .slice(0, 2)
+
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=random&color=fff&size=128`;
 };

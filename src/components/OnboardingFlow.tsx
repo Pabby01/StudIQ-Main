@@ -97,6 +97,17 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
     }
   }, [isReady, isAuthenticated, user, walletAddress]);
 
+  useEffect(() => {
+    if (currentStep === 'profile') {
+      const fallback = user?.email?.split('@')[0] || (walletAddress ? `Student_${walletAddress.slice(0,4)}` : 'Student')
+      if (!displayName) setDisplayName(fallback)
+      try {
+        const dl = (window as unknown as { dataLayer?: Array<Record<string, unknown>> }).dataLayer
+        dl?.push({ event: 'onboarding_stage', event_category: 'onboarding', stage: 'profile' })
+      } catch {}
+    }
+  }, [currentStep, user?.email, walletAddress, displayName])
+
   // Wait for wallet to be available before allowing profile submission
   useEffect(() => {
     if (currentStep === 'profile' && !walletAddress && isAuthenticated) {
@@ -141,16 +152,12 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
     }
   };
 
-  const handleProfileSubmit = async () => {
+  const handleProfileSubmit = async (skip?: boolean) => {
     setNameError(null);
     setError(null);
     
-    if (!displayName.trim()) {
-      setNameError('Please enter your name');
-      return;
-    }
-
-    if (displayName.trim().length < 2) {
+    const finalName = displayName.trim() || (user?.email?.split('@')[0] || (walletAddress ? `Student_${walletAddress.slice(0,4)}` : 'Student'))
+    if (!skip && finalName.length < 2) {
       setNameError('Name must be at least 2 characters long');
       return;
     }
@@ -192,10 +199,10 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
         body: JSON.stringify({
           user_id: user.id,
           wallet_address: walletAddress,
-          display_name: displayName.trim(),
-          email: user.email || null,
-          phone: user.phone || null
-        })
+        display_name: finalName,
+        email: user.email || null,
+        phone: user.phone || null
+      })
       });
 
       secureLogger.info('User initialization response received', {
@@ -223,6 +230,10 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
       });
 
       setCurrentStep('complete');
+      try {
+        const dl = (window as unknown as { dataLayer?: Array<Record<string, unknown>> }).dataLayer
+        dl?.push({ event: 'onboarding_profile_created', event_category: 'onboarding' })
+      } catch {}
     } catch (err) {
       setError('Failed to create profile. Please try again.');
       secureLogger.error('Profile creation error', err);
@@ -406,8 +417,8 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
             </div>
 
             <Button
-              onClick={handleProfileSubmit}
-              disabled={!displayName.trim() || isLoading}
+              onClick={() => handleProfileSubmit()}
+              disabled={isLoading}
               className="w-full min-h-[48px] touch-manipulation"
               size="lg"
             >
@@ -419,6 +430,15 @@ export default function OnboardingFlow({ onComplete, className }: OnboardingFlow
               ) : (
                 <span className="text-sm sm:text-base">Continue</span>
               )}
+            </Button>
+            <Button
+              onClick={() => handleProfileSubmit(true)}
+              variant="outline"
+              disabled={isLoading}
+              className="w-full"
+              size="sm"
+            >
+              Skip for now
             </Button>
           </CardContent>
         </Card>

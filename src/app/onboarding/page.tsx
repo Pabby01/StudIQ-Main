@@ -1,15 +1,33 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+ 
 'use client';
 
 import React from 'react';
 import OnboardingFlow from '@/components/OnboardingFlow';
+import { OptimizedOnboardingFlow } from '@/components/OptimizedOnboardingFlow';
+import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import Head from 'next/head';
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const variant = (searchParams?.get('variant') || 'optimized').toLowerCase();
+
+  const handleEvent = (name: string, params: Record<string, unknown> = {}) => {
+    try {
+      const dl = (window as unknown as { dataLayer?: Array<Record<string, unknown>> }).dataLayer
+      dl?.push({ event: name, event_category: 'onboarding', event_label: variant, ...params })
+    } catch {}
+  };
+
+  React.useEffect(() => {
+    handleEvent('onboarding_variant', { variant })
+  }, [variant]);
 
   const handleOnboardingComplete = () => {
     // Redirect to dashboard after successful onboarding
+    handleEvent('onboarding_complete');
     router.push('/dashboard');
   };
 
@@ -46,7 +64,11 @@ export default function OnboardingPage() {
             </p>
           </div>
           
-          <OnboardingFlow onComplete={handleOnboardingComplete} />
+          {variant === 'classic' ? (
+            <OnboardingFlow onComplete={handleOnboardingComplete} />
+          ) : (
+            <OptimizedOnboardingFlow onComplete={handleOnboardingComplete} />
+          )}
         </div>
       </div>
     </>
