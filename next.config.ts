@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.pexels.com" },
       { protocol: "https", hostname: "coin-images.coingecko.com" },
       { protocol: "https", hostname: "assets.coingecko.com" },
-      { protocol: "https", hostname: "ui-avatars.com" }
+      { protocol: "https", hostname: "ui-avatars.com" },
     ],
     formats: ["image/avif", "image/webp"],
   },
