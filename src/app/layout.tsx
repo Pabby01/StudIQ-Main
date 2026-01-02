@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { PrivyClientProvider } from '@/components/PrivyClientProvider';
+import WalletProviders from '@/app/wallet-providers';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import AppInitializer from '@/components/AppInitializer';
 
@@ -106,25 +106,25 @@ export default function RootLayout({
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        
+
         {/* Theme Color */}
         <meta name="theme-color" content="#0066FF" />
         <meta name="msapplication-TileColor" content="#0066FF" />
-        
+
         {/* Additional SEO */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="StudIQ" />
-        
+
         {/* PWA Manifest - Temporarily disabled due to 401 error */}
         {/* <link rel="manifest" href="/manifest.json" /> */}
-        
+
         {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
+
         {/* Structured Data */}
         <script
           type="application/ld+json"
@@ -174,11 +174,11 @@ export default function RootLayout({
           }}
         />
         <ErrorBoundary>
-          <AppInitializer>
-            <PrivyClientProvider>
+          <WalletProviders>
+            <AppInitializer>
               {children}
-            </PrivyClientProvider>
-          </AppInitializer>
+            </AppInitializer>
+          </WalletProviders>
         </ErrorBoundary>
       </body>
     </html>

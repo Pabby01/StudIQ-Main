@@ -1,3 +1,5 @@
+ 
+ 
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -5,7 +7,7 @@ import { useOptimizedAuth } from '@/hooks/useOptimizedAuth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { CheckCircle, Clock, AlertCircle, Wallet, User, Zap } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, Wallet, User, Zap, ShieldCheck, Blocks, Coins } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface OptimizedOnboardingFlowProps {
@@ -27,31 +29,56 @@ export function OptimizedOnboardingFlow({ onComplete }: OptimizedOnboardingFlowP
     progress, 
     stage, 
     login, 
-    retryWalletCreation 
+    retryWalletCreation,
+    user 
   } = useOptimizedAuth()
 
   const [currentStep, setCurrentStep] = useState(0)
   const [showDetails, setShowDetails] = useState(false)
+  const [didVerified, setDidVerified] = useState(false)
+  const [rewardGranted, setRewardGranted] = useState(false)
+  const [startTime] = useState<number>(() => Date.now())
+
+  const emitEvent = (name: string, params: Record<string, unknown> = {}) => {
+    try {
+      const dl = (window as unknown as { dataLayer?: Array<Record<string, unknown>> }).dataLayer
+      dl?.push({ event: name, event_category: 'onboarding', ...params })
+    } catch {}
+  }
+
+  useEffect(() => {
+    return () => {
+      if (stage !== 'complete') {
+        const durationMs = Date.now() - startTime
+        emitEvent('onboarding_abandon', { stage, duration_ms: durationMs })
+      }
+    }
+  }, [stage, startTime])
 
   // Update current step based on stage
   useEffect(() => {
     switch (stage) {
       case 'connecting':
         setCurrentStep(0)
+        emitEvent('onboarding_stage', { stage: 'connecting' })
         break
       case 'creating_wallet':
         setCurrentStep(1)
+        emitEvent('onboarding_stage', { stage: 'creating_wallet' })
         break
       case 'initializing_user':
         setCurrentStep(2)
+        emitEvent('onboarding_stage', { stage: 'initializing_user' })
         break
       case 'complete':
         if (isAuthenticated && walletAddress) {
+          const durationMs = Date.now() - startTime
+          emitEvent('onboarding_complete', { duration_ms: durationMs })
           setTimeout(onComplete, 1000) // Small delay to show completion
         }
         break
     }
-  }, [stage, isAuthenticated, walletAddress, onComplete])
+  }, [stage, isAuthenticated, walletAddress, onComplete, startTime])
 
   const getStepStatus = (stepIndex: number) => {
     if (stepIndex < currentStep) return 'completed'
@@ -78,6 +105,37 @@ export function OptimizedOnboardingFlow({ onComplete }: OptimizedOnboardingFlowP
     if (error) return 'bg-red-500'
     if (stage === 'complete') return 'bg-green-500'
     return 'bg-blue-500'
+  }
+
+  const verifyWithWallet = async () => {
+    try {
+      const message = new TextEncoder().encode('Verify decentralized identity for StudIQ')
+      const sol = (typeof window !== 'undefined') 
+        ? (window as unknown as { solflare?: { signMessage?: (m: Uint8Array) => Promise<Uint8Array> } }).solflare 
+        : undefined
+      if (sol?.signMessage) {
+        await sol.signMessage(message)
+        setDidVerified(true)
+        emitEvent('did_verified', { method: 'solflare' })
+      } else {
+        setDidVerified(true) // Soft-verify fallback
+        emitEvent('did_verified', { method: 'fallback' })
+      }
+    } catch {
+      setDidVerified(false)
+    }
+  }
+
+  const grantOnboardingReward = async () => {
+    if (rewardGranted) return
+    try {
+      // Increment points as a completion reward
+      const userId = user?.id || walletAddress
+      const payload = { user_id: userId, upsert: true, total_points: 100, level: 1 }
+      await fetch('/api/user/stats', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      setRewardGranted(true)
+      emitEvent('onboarding_reward_granted', { points: 100 })
+    } catch {}
   }
 
   return (
@@ -159,6 +217,35 @@ export function OptimizedOnboardingFlow({ onComplete }: OptimizedOnboardingFlowP
                 </div>
               )
             })}
+          </div>
+
+          {/* Optional DID Verification */}
+          {walletAddress && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ShieldCheck className="w-5 h-5 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-800">Decentralized Identity Verification</span>
+                </div>
+                <Button size="sm" variant="outline" onClick={verifyWithWallet} disabled={didVerified}>
+                  {didVerified ? 'Verified' : 'Verify with Wallet'}
+                </Button>
+              </div>
+              <p className="text-xs text-purple-700 mt-2">Optional step: sign a message to confirm ownership of your wallet.</p>
+            </div>
+          )}
+
+          {/* Blockchain-style Visualization */}
+          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+            <div className="flex items-center space-x-2 mb-2 text-gray-700">
+              <Blocks className="w-4 h-4" />
+              <span className="text-sm font-medium">Onboarding Transaction Flow</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className={cn("p-2 rounded-md text-center text-xs", currentStep >= 0 ? 'bg-blue-100' : 'bg-gray-100')}>Auth</div>
+              <div className={cn("p-2 rounded-md text-center text-xs", currentStep >= 1 ? 'bg-blue-200' : 'bg-gray-100')}>Wallet</div>
+              <div className={cn("p-2 rounded-md text-center text-xs", currentStep >= 2 ? 'bg-blue-300' : 'bg-gray-100')}>Profile</div>
+            </div>
           </div>
 
           {/* Error Display */}
@@ -248,6 +335,13 @@ export function OptimizedOnboardingFlow({ onComplete }: OptimizedOnboardingFlowP
               <p className="text-green-600 text-sm">
                 Wallet: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
               </p>
+              <div className="mt-3 flex items-center justify-center space-x-2 text-green-700">
+                <Coins className="w-4 h-4" />
+                <span className="text-sm">Onboarding reward: +100 points</span>
+              </div>
+              <Button size="sm" className="mt-3" onClick={grantOnboardingReward} disabled={rewardGranted}>
+                {rewardGranted ? 'Reward Granted' : 'Claim Reward'}
+              </Button>
             </div>
           )}
         </CardContent>

@@ -16,32 +16,47 @@ const solanaConnectors = toSolanaWalletConnectors({
 });
 
 const config: PrivyClientConfig = {
-  loginMethods: ['email', 'wallet'],
-  
+  // Login methods optimized for students
+  loginMethods: ['email', 'google', 'wallet'],
+
   appearance: {
     theme: 'light',
-    accentColor: '#676FFF',
+    accentColor: '#0066FF',
     logo: 'https://i.postimg.cc/jjrt2Kdw/logo-2.jpg',
+    showWalletLoginFirst: false, // Email/social first for students
   },
-  
+
+  // SOLANA ONLY - No EVM/Ethereum wallets
   embeddedWallets: {
-    ethereum: {
-      createOnLogin: 'off'
-    },
     solana: {
-      createOnLogin: 'users-without-wallets'
-    }
+      createOnLogin: 'all-users', // Auto-create Solana wallet for everyone
+    },
   },
-  
+
+  // Only Solana external wallets
   externalWallets: {
-    solana: {}
+    solana: {
+      connectors: solanaConnectors,
+    },
   },
-  
+
+  // Privy requires at least one chain - using mainnet minimally
+  // NOTE: This will be removed during migration to wallet-only auth
+  supportedChains: [
+    {
+      id: 1, // Ethereum mainnet (minimal, won't use)
+      name: 'Ethereum',
+      network: 'homestead',
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      rpcUrls: { default: { http: ['https://eth.llamarpc.com'] } },
+    },
+  ],
+
   legal: {
-    termsAndConditionsUrl: 'https://your-terms-url.com',
-    privacyPolicyUrl: 'https://your-privacy-url.com',
+    termsAndConditionsUrl: 'https://studiq.app/terms',
+    privacyPolicyUrl: 'https://studiq.app/privacy',
   },
-  
+
   mfa: {
     noPromptOnMfaRequired: false,
   },
