@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { useWalletAuth } from './useWalletAuth';
 import { secureLogger } from '@/lib/secure-logger';
 import { ChatManager } from '@/lib/database-utils';
 import { buildHeaders } from '@/lib/client-database-utils';
@@ -28,15 +28,15 @@ export interface AITutorState {
   // Current session
   currentSession: ChatSession | null;
   messages: Message[];
-  
+
   // Session management
   sessions: ChatSession[];
-  
+
   // UI state
   isLoading: boolean;
   isLoadingHistory: boolean;
   error: string | null;
-  
+
   // Actions
   sendMessage: (content: string) => Promise<void>;
   createNewSession: (title?: string, subject?: string) => Promise<void>;
@@ -47,8 +47,8 @@ export interface AITutorState {
 }
 
 export const useAITutor = (): AITutorState => {
-  const { user, isAuthenticated } = useAuth();
-  
+  const { connected, address } = useWalletAuth();
+
   // State
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -70,11 +70,11 @@ export const useAITutor = (): AITutorState => {
 
   // Load user sessions
   const refreshSessions = useCallback(async () => {
-    if (!isAuthenticated || !user?.id) return;
+    if (!connected || !address) return;
 
     try {
       setIsLoadingHistory(true);
-      const userSessions = await ChatManager.getUserSessions(user.id);
+      const userSessions = await ChatManager.getUserSessions(address);
       setSessions(userSessions);
     } catch (err) {
       secureLogger.error('Failed to load sessions', err);
@@ -82,12 +82,12 @@ export const useAITutor = (): AITutorState => {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [isAuthenticated, user?.id]);
+  }, [connected, address]);
 
   // Create new session
   const createNewSession = useCallback(async (title?: string, subject?: string) => {
-    if (!isAuthenticated || !user?.id) {
-      setError('Please log in to start a chat session');
+    if (!connected || !address) {
+      setError('Please connect your wallet to start a chat session');
       return;
     }
 
@@ -96,7 +96,7 @@ export const useAITutor = (): AITutorState => {
       setError(null);
 
       const sessionData = {
-        user_id: user.id,
+        user_id: address,
         title: title || `Chat ${new Date().toLocaleDateString()}`,
         subject: subject || null,
         difficulty_level: null
@@ -112,11 +112,11 @@ export const useAITutor = (): AITutorState => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, user?.id, initializeWelcomeMessage, refreshSessions]);
+  }, [connected, address, initializeWelcomeMessage, refreshSessions]);
 
   // Load existing session
   const loadSession = useCallback(async (sessionId: string) => {
-    if (!isAuthenticated || !user?.id) return;
+    if (!connected || !address) return;
 
     try {
       setIsLoading(true);
@@ -131,7 +131,7 @@ export const useAITutor = (): AITutorState => {
 
       // Load messages for this session
       const sessionMessages = await ChatManager.getSessionMessages(sessionId);
-      
+
       // Convert database messages to UI format
       const formattedMessages: Message[] = sessionMessages.map(msg => ({
         id: msg.id,
@@ -155,18 +155,18 @@ export const useAITutor = (): AITutorState => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, user?.id, sessions, initializeWelcomeMessage]);
+  }, [connected, address, sessions, initializeWelcomeMessage]);
 
   // Delete session
   const deleteSession = useCallback(async (sessionId: string) => {
-    if (!isAuthenticated || !user?.id) return;
+    if (!connected || !address) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      await ChatManager.deleteSession(sessionId, user.id);
-      
+      await ChatManager.deleteSession(sessionId, address);
+
       // If we're deleting the current session, clear it
       if (currentSession?.id === sessionId) {
         setCurrentSession(null);
@@ -180,13 +180,13 @@ export const useAITutor = (): AITutorState => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, user?.id, currentSession?.id, refreshSessions]);
+  }, [connected, address, currentSession?.id, refreshSessions]);
 
   // Send message
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
-    if (!isAuthenticated || !user?.id) {
-      setError('Please log in to send messages');
+    if (!connected || !address) {
+      setError('Please connect your wallet to send messages');
       return;
     }
 
@@ -213,7 +213,7 @@ export const useAITutor = (): AITutorState => {
       // Save user message to database
       await ChatManager.addMessage({
         session_id: currentSession.id,
-        user_id: user.id,
+        user_id: address,
         role: 'user',
         content: content.trim()
       });
@@ -231,7 +231,7 @@ export const useAITutor = (): AITutorState => {
             content: m.content
           })),
           sessionId: currentSession.id,
-          userId: user.id
+          userId: address
         }),
       });
 
@@ -239,7 +239,7 @@ export const useAITutor = (): AITutorState => {
 
       if (!response.ok) {
         let errorContent = "I'm sorry, I'm having trouble right now. ";
-        
+
         if (data.error && data.details) {
           if (data.error.includes('API key not configured')) {
             errorContent = "🔑 OpenAI API key is not configured. Please add your OPENAI_API_KEY to the environment variables and restart the server.";
@@ -280,7 +280,7 @@ export const useAITutor = (): AITutorState => {
       // Save assistant message to database
       await ChatManager.addMessage({
         session_id: currentSession.id,
-        user_id: user.id,
+        user_id: address,
         role: 'assistant',
         content: data.message
       });
@@ -298,7 +298,7 @@ export const useAITutor = (): AITutorState => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, user?.id, currentSession, messages, createNewSession]);
+  }, [connected, address, currentSession, messages, createNewSession]);
 
   // Clear error
   const clearError = useCallback(() => {
@@ -307,10 +307,10 @@ export const useAITutor = (): AITutorState => {
 
   // Load sessions on mount
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
+    if (connected && address) {
       refreshSessions();
     }
-  }, [isAuthenticated, user?.id, refreshSessions]);
+  }, [connected, address, refreshSessions]);
 
   // Initialize with welcome message if no session
   useEffect(() => {
