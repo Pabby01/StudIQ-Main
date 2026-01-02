@@ -1,37 +1,49 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useWalletAuth } from '@/hooks/useWalletAuth';
+import { usePrivy } from '@privy-io/react-auth';
 import { motion } from 'framer-motion';
+import Head from 'next/head';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LandingNavbar } from '@/components/LandingNavbar';
 import { Footer } from '@/components/Footer';
-import { WalletModal } from '@/components/WalletModal';
 import { Brain, Wallet, TrendingUp, Store, Shield, Users, Loader2, ArrowRight, Sparkles, DollarSign, BookOpen, Target, Zap, GraduationCap, Calculator, Lightbulb, Trophy, PieChart, Atom } from 'lucide-react';
 
 export default function Home() {
-  const { address, connected } = useWalletAuth();
+  const { authenticated, ready } = usePrivy();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
 
-  // Redirect connected users to dashboard
+  // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (connected && address && !isRedirecting) {
+    if (ready && authenticated && !isRedirecting) {
       setIsRedirecting(true);
       // Add a small delay to prevent flash
       setTimeout(() => {
         router.push('/dashboard');
       }, 100);
     }
-  }, [connected, address, router, isRedirecting]);
+  }, [ready, authenticated, router, isRedirecting]);
 
-  // Show brief redirect message if connected
-  if (connected && isRedirecting) {
+  // Show loading while checking authentication (with timeout)
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Initializing app...</p>
+          <p className="text-xs text-gray-500 mt-2">This should only take a moment</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show brief redirect message if authenticated
+  if (authenticated && isRedirecting) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -42,13 +54,35 @@ export default function Home() {
     );
   }
   return (
-    <div className="min-h-screen animated-gradient">
-      <LandingNavbar onOpenWalletModal={() => setIsWalletModalOpen(true)} />
-
-      {/* Hero Section */}
+    <>
+      <Head>
+        <title>StudIQ - AI-Powered Financial Literacy for Students | Web3 Learning Platform</title>
+        <meta name="description" content="Empower your financial future with AI-driven learning, DeFi opportunities, and secure wallet management. Join thousands of students mastering financial literacy through interactive Web3 technology." />
+        <meta name="keywords" content="student financial literacy, AI financial tutor, Web3 education, DeFi learning, student wallet, financial education app, cryptocurrency education, blockchain learning, savings pools, campus rewards" />
+        <meta name="robots" content="index, follow" />
+        <meta name="googlebot" content="index, follow, max-video-preview:-1, max-image-preview:large, max-snippet:-1" />
+        <meta property="og:title" content="StudIQ - AI-Powered Financial Literacy for Students" />
+        <meta property="og:description" content="Learn finance with AI, earn rewards, and manage your crypto wallet. The ultimate Web3 learning platform for students." />
+        <meta property="og:url" content="https://studiq.app" />
+        <meta property="og:site_name" content="StudIQ" />
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:image" content="https://studiq.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="StudIQ AI Financial Literacy Platform" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="StudIQ - AI Financial Tutor for Students" />
+        <meta name="twitter:description" content="Master financial literacy with AI-powered learning and Web3 technology." />
+        <meta name="twitter:image" content="https://studiq.app/twitter-image.png" />
+      </Head>
+      <div className="min-h-screen animated-gradient">
+        <LandingNavbar />
+        
+        {/* Hero Section */}
       <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 -z-10 hero-gradient" aria-hidden="true" />
-
+        
         {/* Floating particles background */}
         <div className="absolute inset-0 -z-5" aria-hidden="true">
           {[...Array(20)].map((_, i) => (
@@ -71,9 +105,9 @@ export default function Home() {
             />
           ))}
         </div>
-
+        
         <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-12 items-center px-4 md:px-8">
-          <motion.div
+          <motion.div 
             className="glass-panel rounded-3xl p-10 md:p-12 text-center md:text-left relative overflow-hidden"
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -89,60 +123,58 @@ export default function Home() {
               <Sparkles className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-medium text-gradient-primary">Web3 Powered</span>
             </motion.div>
-
-            <motion.h1
+            
+            <motion.h1 
               className="text-web3-hero text-gradient-primary text-shadow-glow mb-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
               Simplifying Financial Literacy
-              <motion.span
+              <motion.span 
                 className="block text-gradient-secondary mt-2"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.5 }}
               >for Every Student</motion.span>
             </motion.h1>
-
-            <motion.p
+            
+            <motion.p 
               className="text-web3-subtitle text-gray-700 mb-8 max-w-lg"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
             >
-              Connect your wallet, learn from AI, and earn rewards while building financial literacy.
+              Connect your wallet, learn from AI, and earn rewards while building financial literacy. 
               StudIQ makes DeFi accessible through cutting-edge Web3 technology.
             </motion.p>
-
-            <motion.div
+            
+            <motion.div 
               className="flex flex-col sm:flex-row gap-4 items-center justify-center md:justify-start"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
             >
-              <motion.div
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              >
-                <Button
-                  size="lg"
-                  onClick={() => setIsWalletModalOpen(true)}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 border-0"
+              <Link href="/onboarding">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 >
-                  <span className="inline-flex items-center gap-2">
-                    Get Started
-                    <motion.div
-                      animate={{ x: [0, 4, 0] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      <ArrowRight className="h-5 w-5" />
-                    </motion.div>
-                  </span>
-                </Button>
-              </motion.div>
-
+                  <Button size="lg" className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 border-0">
+                    <span className="inline-flex items-center gap-2">
+                      Get Started
+                      <motion.div
+                        animate={{ x: [0, 4, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <ArrowRight className="h-5 w-5" />
+                      </motion.div>
+                    </span>
+                  </Button>
+                </motion.div>
+              </Link>
+              
               <Link href="/ai-tutor">
                 <motion.div
                   whileHover={{ scale: 1.05, y: -2 }}
@@ -163,7 +195,7 @@ export default function Home() {
                 </motion.div>
               </Link>
             </motion.div>
-
+            
             {/* Feature highlights */}
             <motion.div
               className="flex flex-wrap gap-6 mt-8 justify-center md:justify-start"
@@ -183,35 +215,35 @@ export default function Home() {
               ))}
             </motion.div>
           </motion.div>
-
-          <motion.div
+          
+          <motion.div 
             className="relative flex justify-center p-16 md:p-20 min-h-[600px] items-center"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
           >
             {/* Animated Background Blurs */}
-            <motion.div
-              className="absolute -top-12 -left-12 h-32 w-32 rounded-full bg-blue-200/30 blur-xl z-0"
-              animate={{
+            <motion.div 
+              className="absolute -top-12 -left-12 h-32 w-32 rounded-full bg-blue-200/30 blur-xl z-0" 
+              animate={{ 
                 scale: [1, 1.2, 1],
                 opacity: [0.3, 0.6, 0.3]
               }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              aria-hidden="true"
+              aria-hidden="true" 
             />
-            <motion.div
-              className="absolute -bottom-12 -right-12 h-40 w-40 rounded-full bg-indigo-200/30 blur-xl z-0"
-              animate={{
+            <motion.div 
+              className="absolute -bottom-12 -right-12 h-40 w-40 rounded-full bg-indigo-200/30 blur-xl z-0" 
+              animate={{ 
                 scale: [1, 1.1, 1],
                 opacity: [0.3, 0.5, 0.3]
               }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              aria-hidden="true"
+              aria-hidden="true" 
             />
-
+            
             {/* Main Image Container - Smaller and Circular */}
-            <motion.div
+            <motion.div 
               className="relative w-80 h-80 overflow-hidden rounded-full shadow-2xl ring-1 ring-black/5 z-5"
               whileHover={{ scale: 1.05, y: -8 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -234,7 +266,7 @@ export default function Home() {
                 />
               </motion.div>
             </motion.div>
-
+            
             {/* Single Orbit with All Icons - Perfect Circular Motion */}
             <motion.div
               className="absolute inset-0 z-20"
@@ -263,7 +295,7 @@ export default function Home() {
                 const radius = 200; // Single orbit radius with clear space from image
                 const x = Math.cos((item.angle * Math.PI) / 180) * radius;
                 const y = Math.sin((item.angle * Math.PI) / 180) * radius;
-
+                
                 return (
                   <motion.div
                     key={index}
@@ -296,7 +328,7 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-      {/* merged hero block above */}
+{/* merged hero block above */}
 
       {/* Features Section */}
       <section id="features" className="py-24 px-4 sm:px-6 lg:px-8 web3-gradient-primary relative overflow-hidden">
@@ -306,9 +338,9 @@ export default function Home() {
           <div className="absolute top-40 right-10 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
           <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-2000"></div>
         </div>
-
+        
         <div className="mx-auto max-w-7xl relative z-10">
-          <motion.div
+          <motion.div 
             className="text-center mb-20"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -379,7 +411,7 @@ export default function Home() {
                 <Card className="glass-panel border-0 shadow-2xl hover:shadow-3xl transition-all duration-300 h-full group relative overflow-hidden">
                   {/* Gradient border effect */}
                   <div className={`absolute inset-0 bg-gradient-to-r ${feature.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-xl`}></div>
-
+                  
                   <CardHeader className="relative z-10 p-8">
                     <div className={`w-16 h-16 ${feature.iconBg} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
                       <feature.icon className="h-8 w-8 text-black" />
@@ -405,9 +437,9 @@ export default function Home() {
           <div className="absolute top-10 right-20 w-96 h-96 bg-cyan-400 rounded-full mix-blend-multiply filter blur-3xl"></div>
           <div className="absolute bottom-10 left-20 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl"></div>
         </div>
-
+        
         <div className="mx-auto max-w-7xl relative z-10">
-          <motion.div
+          <motion.div 
             className="text-center mb-20"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -421,7 +453,7 @@ export default function Home() {
               Get started in three simple steps and begin your Web3 financial journey
             </p>
           </motion.div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
@@ -432,7 +464,7 @@ export default function Home() {
                 bgGradient: "bg-gradient-to-br from-blue-500/20 to-cyan-500/20"
               },
               {
-                step: "2",
+                step: "2", 
                 title: "Learn with AI",
                 description: "Chat with our AI tutor to understand DeFi concepts and discover opportunities",
                 gradient: "from-green-500 to-emerald-500",
@@ -458,7 +490,7 @@ export default function Home() {
                 <div className="glass-panel rounded-3xl p-10 h-full group relative overflow-hidden">
                   {/* Gradient border effect */}
                   <div className={`absolute inset-0 bg-gradient-to-r ${item.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-3xl`}></div>
-
+                  
                   <div className="relative z-10">
                     <div className={`mx-auto w-20 h-20 ${item.bgGradient} rounded-full flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 shadow-xl`}>
                       <span className="text-3xl font-bold text-black text-shadow-glow">{item.step}</span>
@@ -470,7 +502,7 @@ export default function Home() {
                       {item.description}
                     </p>
                   </div>
-
+                  
                   {/* Connection line for desktop */}
                   {index < 2 && (
                     <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-white/50 to-transparent transform -translate-y-1/2 z-20"></div>
@@ -488,8 +520,8 @@ export default function Home() {
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 rounded-full filter blur-3xl"></div>
         </div>
-
-        <motion.div
+        
+        <motion.div 
           className="mx-auto max-w-5xl text-center relative z-10"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -501,14 +533,14 @@ export default function Home() {
           </h2>
           <div className="space-y-8">
             <p className="text-xl text-black leading-relaxed">
-              StudIQ is the first AI-powered financial education platform built specifically for students on Web3.
+              StudIQ is the first AI-powered financial education platform built specifically for students on Web3. 
               We believe that financial literacy should be accessible, engaging, and rewarding in the decentralized future.
             </p>
             <p className="text-xl text-black leading-relaxed">
-              Our platform combines cutting-edge AI technology with the power of decentralized finance to create a safe
+              Our platform combines cutting-edge AI technology with the power of decentralized finance to create a safe 
               learning environment where students can build real financial skills for the Web3 economy.
             </p>
-            <motion.p
+            <motion.p 
               className="text-xl text-black leading-relaxed font-semibold"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -529,8 +561,8 @@ export default function Home() {
           <div className="absolute bottom-10 right-10 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-1000"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-2000"></div>
         </div>
-
-        <motion.div
+        
+        <motion.div 
           className="mx-auto max-w-4xl text-center relative z-10"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -543,35 +575,33 @@ export default function Home() {
           <p className="text-xl text-black/90 mb-12 max-w-3xl mx-auto leading-relaxed">
             Join StudIQ today and take control of your financial future with AI-powered learning and cutting-edge Web3 technology.
           </p>
-          <motion.div
+          <motion.div 
             className="flex flex-col sm:flex-row gap-6 justify-center items-center"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
             viewport={{ once: true }}
           >
-            <motion.div
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            >
-              <Button
-                size="lg"
-                onClick={() => setIsWalletModalOpen(true)}
-                className="px-12 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-lg rounded-xl shadow-2xl hover:shadow-3xl transition-all duration-300 border-0"
+            <Link href="/dashboard">
+              <motion.div
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
-                <span className="inline-flex items-center gap-3">
-                  Get Started Now
-                  <motion.div
-                    animate={{ x: [0, 4, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    <ArrowRight className="h-6 w-6" />
-                  </motion.div>
-                </span>
-              </Button>
-            </motion.div>
-
+                <Button size="lg" className="px-12 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-lg rounded-xl shadow-2xl hover:shadow-3xl transition-all duration-300 border-0">
+                  <span className="inline-flex items-center gap-3">
+                    Get Started Now
+                    <motion.div
+                      animate={{ x: [0, 4, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <ArrowRight className="h-6 w-6" />
+                    </motion.div>
+                  </span>
+                </Button>
+              </motion.div>
+            </Link>
+            
             <Link href="/ai-tutor">
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
@@ -596,9 +626,7 @@ export default function Home() {
       </section>
 
       <Footer />
-
-      {/* Wallet Modal */}
-      <WalletModal isOpen={isWalletModalOpen} onClose={() => setIsWalletModalOpen(false)} />
-    </div>
+      </div>
+    </>
   );
 }

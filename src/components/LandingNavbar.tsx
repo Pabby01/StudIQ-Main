@@ -13,7 +13,11 @@ const navigation = [
   { name: 'About', href: '#about' },
 ];
 
-export function LandingNavbar() {
+interface LandingNavbarProps {
+  onOpenWalletModal?: () => void;
+}
+
+export function LandingNavbar({ onOpenWalletModal }: LandingNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -26,14 +30,13 @@ export function LandingNavbar() {
   }, []);
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      isScrolled 
-        ? 'glass-panel-strong backdrop-blur-xl border-b border-purple-500/20 shadow-glow-purple' 
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+        ? 'glass-panel-strong backdrop-blur-xl border-b border-purple-500/20 shadow-glow-purple'
         : 'glass-nav backdrop-blur-sm'
-    }`}>
+      }`}>
       {/* Background gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-purple-900/60 to-slate-900/80"></div>
-      
+
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between items-center">
           {/* Logo */}
@@ -48,7 +51,7 @@ export function LandingNavbar() {
               />
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </div>
-            
+
             {/* Web3 Indicator */}
             <div className="hidden sm:flex items-center ml-2 px-2 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-purple-500/20">
               <Sparkles className="h-3 w-3 text-purple-400 mr-1" />
@@ -69,39 +72,40 @@ export function LandingNavbar() {
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 -m-2"></div>
               </Link>
             ))}
-            
+
             {/* CTA Button */}
-            <Link href="/onboarding">
-              <Button className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-glow-blue transition-all duration-300 hover:scale-105 hover:shadow-glow-purple group">
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <span className="relative z-10 flex items-center space-x-2">
-                  <span>Get Started</span>
-                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-                </span>
-              </Button>
-            </Link>
+            <Button
+              onClick={onOpenWalletModal}
+              className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-glow-blue transition-all duration-300 hover:scale-105 hover:shadow-glow-purple group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <span className="relative z-10 flex items-center space-x-2">
+                <span>Get Started</span>
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </span>
+            </Button>
           </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden">
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   className="text-slate-300 hover:text-white hover:bg-purple-500/20 border border-purple-500/20 backdrop-blur-sm"
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent 
-                side="right" 
+              <SheetContent
+                side="right"
                 className="w-[300px] sm:w-[400px] bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 border-l border-purple-500/20 backdrop-blur-xl"
               >
                 {/* Mobile menu background effects */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/10 via-transparent to-transparent"></div>
-                
+
                 <div className="relative flex flex-col space-y-6 mt-8">
                   {/* Mobile Logo */}
                   <div className="flex items-center space-x-2 pb-4 border-b border-purple-500/20">
@@ -131,17 +135,21 @@ export function LandingNavbar() {
                       </span>
                     </Link>
                   ))}
-                  
+
                   <div className="pt-6 border-t border-purple-500/20">
-                    <Link href="/dashboard" onClick={() => setIsOpen(false)}>
-                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-glow-blue transition-all duration-300 hover:shadow-glow-purple group">
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                        <span className="relative z-10 flex items-center justify-center space-x-2">
-                          <span>Get Started</span>
-                          <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-                        </span>
-                      </Button>
-                    </Link>
+                    <Button
+                      onClick={() => {
+                        setIsOpen(false);
+                        onOpenWalletModal?.();
+                      }}
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-glow-blue transition-all duration-300 hover:shadow-glow-purple group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <span className="relative z-10 flex items-center justify-center space-x-2">
+                        <span>Get Started</span>
+                        <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                      </span>
+                    </Button>
                   </div>
                 </div>
               </SheetContent>
