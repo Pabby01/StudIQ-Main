@@ -1,9 +1,11 @@
 import { useWallet as useWalletAdapter } from "@solana/wallet-adapter-react";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
+import { CrossAppSessionManager } from "@/lib/cross-app-session";
+import { getSyncClient } from "@/lib/bidirectional-sync";
 
 /**
- * Simple wallet authentication hook
- * Replaces complex Privy useAuth (800 lines) with 27 lines
+ * Enhanced wallet authentication hook with cross-app sync
+ * Manages sessions and syncs data between Main App and Campus Store
  */
 export function useWalletAuth() {
     const wallet = useWalletAdapter();
@@ -14,6 +16,39 @@ export function useWalletAuth() {
     }, [wallet.connected, wallet.publicKey]);
 
     const isAuthenticated = wallet.connected;
+
+    // Handle wallet connection - create session token and sync
+    useEffect(() => {
+        if (wallet.connected && address) {
+            // Create session token for cross-app authentication
+            CrossAppSessionManager.createSessionToken(address, 'main_app');
+
+            // Sync data with campus store
+            const syncClient = getSyncClient();
+            syncClient.syncOnConnect(address).catch(err => {
+                console.error('Sync error on connect:', err);
+            });
+
+            console.log('✅ Wallet connected, session created, sync initiated:', address);
+        }
+    }, [wallet.connected, address]);
+
+    // Handle wallet disconnection - clear session
+    useEffect(() => {
+        if (!wallet.connected) {
+            CrossAppSessionManager.clearSession();
+            console.log('✅ Session cleared on disconnect');
+        }
+    }, [wallet.connected]);
+
+    // Check for existing session on mount
+    useEffect(() => {
+        const existingSession = CrossAppSessionManager.getCurrentSession();
+        if (existingSession && !wallet.connected) {
+            console.log('📱 Found existing session, attempting auto-connect...');
+            // Auto-connect will be handled by WalletProvider if wallet is available
+        }
+    }, []);
 
     return {
         // Wallet object
@@ -37,5 +72,9 @@ export function useWalletAuth() {
         logout: wallet.disconnect,
         walletAddress: address,
         user: address ? { walletAddress: address, id: address } : null,
+
+        // Session helpers
+        getSessionToken: () => CrossAppSessionManager.getCurrentSession()?.token,
+        hasActiveSession: () => CrossAppSessionManager.getCurrentSession() !== null,
     };
 }

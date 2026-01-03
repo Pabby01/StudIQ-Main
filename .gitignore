@@ -39,3 +39,123 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+
+
+# Environment Variables for Campus Store
+
+## .env.local
+
+```bash
+# Existing Supabase variables (keep these)
+NEXT_PUBLIC_SUPABASE_URL=your_store_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_store_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_store_service_role_key
+
+# NEW: Cross-app sync variables
+NEXT_PUBLIC_MAIN_APP_URL=https://studiq.app
+NEXT_PUBLIC_STORE_URL=https://store.studiq.fun
+
+# IMPORTANT: Use the SAME session token secret as main app!
+SESSION_TOKEN_SECRET=your-super-secret-session-key-here-min-32-chars
+
+# IMPORTANT: Use the SAME sync API key as main app!
+SYNC_API_KEY=your-sync-api-key-here
+```
+
+---
+
+## Important Notes
+
+1. **Same Secrets**: The `SESSION_TOKEN_SECRET` and `SYNC_API_KEY` MUST be **exactly the same** as in the Main App for cross-app authentication to work.
+
+2. **Copy from Main App**: Use the same values you generated for the Main App's `.env.local` file.
+
+3. **Never Commit**: Make sure `.env.local` is in `.gitignore`.
+
+4. **Production**: Add these to your hosting platform environment variables.
+
+---
+
+## Next Steps After Adding Env Vars
+
+1. Restart the dev server: `npm run dev`
+2. Test wallet connection
+3. Make a test purchase to verify sync
+
+
+
+
+
+
+
+
+# Environment Variables for Cross-App Integration
+
+## Main App (.env.local)
+
+```bash
+# Existing variables (keep these)
+NEXT_PUBLIC_SUPABASE_URL=your_main_app_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_main_app_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_main_app_service_role_key
+
+# NEW: Cross-app sync variables
+NEXT_PUBLIC_STORE_URL=https://store.studiq.fun
+NEXT_PUBLIC_MAIN_APP_URL=https://studiq.app
+
+# Session token secret (use a strong random string)
+SESSION_TOKEN_SECRET=your-super-secret-session-key-here-min-32-chars
+
+# Optional: API key for secure sync (generate a random string)
+SYNC_API_KEY=your-sync-api-key-here
+```
+
+## Campus Store (.env.local)
+
+```bash
+# Store Supabase (separate database)
+NEXT_PUBLIC_SUPABASE_URL=your_store_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_store_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_store_service_role_key
+
+# NEW: Cross-app sync variables
+NEXT_PUBLIC_MAIN_APP_URL=https://studiq.app
+NEXT_PUBLIC_STORE_URL=https://store.studiq.fun
+
+# IMPORTANT: Use the SAME session token secret as main app!
+SESSION_TOKEN_SECRET=your-super-secret-session-key-here-min-32-chars
+
+# IMPORTANT: Use the SAME sync API key as main app!
+SYNC_API_KEY=your-sync-api-key-here
+```
+
+---
+
+## Generating Secrets
+
+### Session Token Secret
+```bash
+# Generate a secure random string (Node.js)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### Sync API Key
+```bash
+# Generate another random string
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+---
+
+## Important Notes
+
+1. **Same Secrets**: The `SESSION_TOKEN_SECRET` and `SYNC_API_KEY` MUST be the same on both apps for cross-app authentication to work.
+
+2. **CORS**: Make sure both domains allow cross-origin requests from each other.
+
+3. **Security**: Never commit these secrets to Git. Add `.env.local` to `.gitignore`.
+
+4. **Production**: When deploying, add these environment variables to your hosting platform (Vercel, etc.).
+

@@ -1,4 +1,4 @@
- 
+
 'use client';
 
 import Link from 'next/link';
@@ -16,7 +16,7 @@ const navigation = [
   { name: 'AI Tutor', href: '/ai-tutor', icon: Brain },
   { name: 'Markets', href: '/markets', icon: TrendingUp },
   { name: 'Savings Pools', href: '/pools', icon: Coins },
-  { name: 'Campus Store', href: '/stores', icon: Store },
+  { name: 'Campus Store', href: 'https://store.studiq.fun', icon: Store, external: true },
   { name: 'Portfolio', href: '/portfolio', icon: ShoppingBagIcon },
 ];
 
@@ -32,7 +32,7 @@ export function Navbar() {
     root.classList.toggle('dark', !!isDark);
     try {
       localStorage.setItem('studiq_theme', nextTheme);
-    } catch {}
+    } catch { }
     setTheme(nextTheme);
   };
 
@@ -67,6 +67,21 @@ export function Navbar() {
           <div className="hidden lg:flex items-center space-x-6 xl:space-x-8">
             {navigation.map((item) => {
               const Icon = item.icon;
+
+              if (item.external) {
+                return (
+                  <a
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 min-h-[48px]"
+                    aria-label={item.name}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium text-sm whitespace-nowrap">{item.name}</span>
+                  </a>
+                );
+              }
+
               return (
                 <Link
                   key={item.name}
@@ -140,9 +155,9 @@ export function Navbar() {
             <WalletConnectButton />
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="min-h-[48px] min-w-[48px] touch-manipulation"
                   aria-label="Open menu"
                 >
