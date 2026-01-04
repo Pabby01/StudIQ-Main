@@ -137,7 +137,7 @@ export default function WalletConnectButton() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={isLoading}>
+        <Button variant="outline" size="sm">
           <User className="h-4 w-4 mr-2" />
           {displayText}
           <ChevronDown className="h-4 w-4 ml-2" />
@@ -189,7 +189,7 @@ export default function WalletConnectButton() {
 
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="h-4 w-4 mr-2" />
-          {isLoading ? 'Signing out...' : 'Sign Out'}
+          Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

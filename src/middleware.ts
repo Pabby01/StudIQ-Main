@@ -10,7 +10,6 @@ export function middleware(request: NextRequest) {
         const origin = request.headers.get('origin')
         const allowedOrigins = [
             'https://www.studiq.fun',
-            'https://studiq.fun',
             'https://store.studiq.fun',
             'http://localhost:3000',
             'http://localhost:3001'
