@@ -7,23 +7,24 @@ import { secureLogger, secureLogUtils } from './secure-logger'
  * Client-side database utilities that call API routes instead of using supabaseAdmin directly
  */
 
-// Token store for Privy authentication
-let currentPrivyToken: string | null = null
+// Wallet address store for authentication
+let currentWalletAddress: string | null = null
 
-export function setPrivyToken(token: string | null): void {
-  currentPrivyToken = token
+export function setWalletAddress(address: string | null): void {
+  currentWalletAddress = address
 }
 
-// Helper function to build headers with optional Privy token
-export function buildHeaders(baseHeaders: Record<string, string> = {}): Record<string, string> {
-  const headers = { ...baseHeaders }
-  
-  if (currentPrivyToken) {
-    headers['x-privy-token'] = currentPrivyToken
-    // Add Authorization header for Bearer token authentication
-    headers['Authorization'] = `Bearer ${currentPrivyToken}`
+// Helper function to build headers with wallet address authorization
+export function buildHeaders(additionalHeaders: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...additionalHeaders,
   }
-  
+
+  if (currentWalletAddress) {
+    headers['Authorization'] = `Bearer ${currentWalletAddress}`
+  }
+
   return headers
 }
 
@@ -31,7 +32,7 @@ export function buildHeaders(baseHeaders: Record<string, string> = {}): Record<s
 async function handleApiResponse(response: Response, operation: string): Promise<any> {
   if (!response.ok) {
     let errorMessage = `Failed to ${operation}`
-    
+
     try {
       const errorData = await response.json()
       errorMessage = errorData.error || errorMessage
@@ -39,10 +40,10 @@ async function handleApiResponse(response: Response, operation: string): Promise
       // If we can't parse the error response, use the status text
       errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`
     }
-    
+
     throw new Error(errorMessage)
   }
-  
+
   try {
     return await response.json()
   } catch (parseError) {
@@ -55,16 +56,16 @@ function handleNetworkError(error: any, operation: string): never {
   if (error instanceof TypeError && error.message.includes('fetch')) {
     throw new Error(`Network error during ${operation}. Please check your connection and try again.`)
   }
-  
+
   if (error.name === 'AbortError') {
     throw new Error(`Request timeout during ${operation}. Please try again.`)
   }
-  
+
   // Re-throw the original error if it's already a proper Error object
   if (error instanceof Error) {
     throw error
   }
-  
+
   // Handle unknown error types
   throw new Error(`Unknown error during ${operation}: ${String(error)}`)
 }
@@ -143,11 +144,11 @@ export class ClientUserProfileManager {
       })
 
       const data = await handleApiResponse(response, 'upsert user profile')
-      
+
       secureLogger.info('Profile upsert successful', {
         userId: secureLogUtils.maskUserId(profile.user_id)
       })
-      
+
       return data.profile
     } catch (error) {
       secureLogger.error('Error upserting user profile', {
@@ -471,7 +472,7 @@ export class ClientUserBatchManager {
       }
 
       const result = await this.upsertBatchUserData(request)
-      
+
       if (!result.success && result.errors) {
         secureLogger.warn('Partial success in batch sync', {
           timestamp: new Date().toISOString(),
