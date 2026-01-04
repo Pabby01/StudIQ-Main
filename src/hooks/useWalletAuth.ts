@@ -74,7 +74,6 @@ export function useWalletAuth() {
         user: address ? { walletAddress: address, id: address } : null,
 
         // Session helpers
-        getSessionToken: () => CrossAppSessionManager.getCurrentSession()?.token,
-        hasActiveSession: () => CrossAppSessionManager.getCurrentSession() !== null,
+        hasActiveSession: () => CrossAppSessionManager.hasActiveSession(),
     };
 }

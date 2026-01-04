@@ -1,94 +1,98 @@
 /**
- * Cross-App Session Token Manager
+ * Cross-App Session Manager (Client-Side Version)
  * 
- * Manages wallet session tokens that work across both
- * StudIQ Main App (studiq.app) and Campus Store (store.studiq.fun)
+ * Manages wallet sessions across studiq.app and store.studiq.fun
+ * Uses localStorage for cross-domain session persistence
+ * 
+ * NOTE: This is the CLIENT-SIDE version - no JWT signing needed here
+ * Server-side validation happens in API endpoints
  */
 
-import { sign, verify } from 'jsonwebtoken'
+const SESSION_STORAGE_KEY = 'studiq_wallet_session'
+const SESSION_EXPIRY_DAYS = 7
 
-const SESSION_TOKEN_SECRET = process.env.SESSION_TOKEN_SECRET || 'your-super-secret-key-here'
-const TOKEN_EXPIRY = '7d' // 7 days
-
-export interface SessionTokenPayload {
+export interface WalletSession {
     walletAddress: string
     connectedAt: number
-    source: 'main_app' | 'campus_store'
+    expiresAt: number
+    appOrigin: 'main_app' | 'campus_store'
 }
 
 export class CrossAppSessionManager {
     /**
-     * Create a session token when wallet connects
+     * Create a new wallet session (client-side - no JWT needed)
      */
-    static createSessionToken(walletAddress: string, source: 'main_app' | 'campus_store'): string {
-        const payload: SessionTokenPayload = {
+    static createSessionToken(
+        walletAddress: string,
+        appOrigin: 'main_app' | 'campus_store'
+    ): string {
+        const now = Date.now()
+        const expiresAt = now + (SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+
+        const session: WalletSession = {
             walletAddress,
-            connectedAt: Date.now(),
-            source
+            connectedAt: now,
+            expiresAt,
+            appOrigin
         }
 
-        const token = sign(payload, SESSION_TOKEN_SECRET, {
-            expiresIn: TOKEN_EXPIRY
-        })
-
-        // Store in localStorage for cross-domain access
+        // Store in localStorage for cross-tab/cross-domain persistence
         if (typeof window !== 'undefined') {
-            localStorage.setItem('studiq_session_token', token)
-            localStorage.setItem('studiq_wallet_address', walletAddress)
+            try {
+                localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+                console.log('✅ Session created:', { walletAddress, appOrigin })
+            } catch (error) {
+                console.error('Failed to store session:', error)
+            }
         }
 
-        return token
-    }
-
-    /**
-     * Verify and decode session token
-     */
-    static verifySessionToken(token: string): SessionTokenPayload | null {
-        try {
-            const decoded = verify(token, SESSION_TOKEN_SECRET) as SessionTokenPayload
-            return decoded
-        } catch (error) {
-            console.error('Invalid session token:', error)
-            return null
-        }
+        // Return wallet address as simple "token" (not a real JWT)
+        return walletAddress
     }
 
     /**
      * Get current session from localStorage
      */
-    static getCurrentSession(): { token: string; walletAddress: string } | null {
+    static getCurrentSession(): WalletSession | null {
         if (typeof window === 'undefined') return null
 
-        const token = localStorage.getItem('studiq_session_token')
-        const walletAddress = localStorage.getItem('studiq_wallet_address')
+        try {
+            const stored = localStorage.getItem(SESSION_STORAGE_KEY)
+            if (!stored) return null
 
-        if (!token || !walletAddress) return null
+            const session: WalletSession = JSON.parse(stored)
 
-        // Verify token is still valid
-        const payload = this.verifySessionToken(token)
-        if (!payload) {
-            this.clearSession()
+            // Check if session is expired
+            if (Date.now() > session.expiresAt) {
+                this.clearSession()
+                return null
+            }
+
+            return session
+        } catch (error) {
+            console.error('Failed to get session:', error)
             return null
         }
-
-        return { token, walletAddress }
     }
 
     /**
-     * Clear session on disconnect
+     * Clear current session
      */
     static clearSession(): void {
-        if (typeof window === 'undefined') return
-
-        localStorage.removeItem('studiq_session_token')
-        localStorage.removeItem('studiq_wallet_address')
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.removeItem(SESSION_STORAGE_KEY)
+                console.log('🧹 Session cleared')
+            } catch (error) {
+                console.error('Failed to clear session:', error)
+            }
+        }
     }
 
     /**
-     * Check if wallet should auto-connect based on session
+     * Check if there's an active valid session
      */
-    static shouldAutoConnect(): string | null {
-        const session = this.getCurrentSession()
-        return session?.walletAddress || null
+    static hasActiveSession(): boolean {
+        return this.getCurrentSession() !== null
     }
 }
