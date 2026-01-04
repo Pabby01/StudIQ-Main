@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import WalletConnectButton from './WalletConnectButton';
 import { Menu, Home, Brain, Coins, Store, ShoppingBagIcon, TrendingUp } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { Sun, Moon } from 'lucide-react';
 
 const navigation = [
@@ -22,7 +22,7 @@ const navigation = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { isAuthenticated, user } = useAuth();
+  const { connected: isAuthenticated, address } = useWalletAuth();
 
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
 
@@ -98,9 +98,6 @@ export function Navbar() {
 
           {/* Desktop Wallet Button with Display Name */}
           <div className="hidden lg:flex items-center gap-3">
-            {isAuthenticated && user?.displayName && (
-              <span className="text-gray-700 dark:text-gray-200 font-medium truncate max-w-[220px]">{user.displayName}</span>
-            )}
             <Button
               variant="ghost"
               size="sm"
@@ -132,9 +129,6 @@ export function Navbar() {
                 </Link>
               );
             })}
-            {isAuthenticated && user?.displayName && (
-              <span className="text-gray-700 dark:text-gray-200 font-medium truncate max-w-[160px]">{user.displayName}</span>
-            )}
             <Button
               variant="ghost"
               size="sm"

@@ -1,6 +1,14 @@
 import { secureLogger } from './secure-logger';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { normalizeWalletAddress, isValidSolanaAddress } from './wallet-utils';
+import axios from 'axios';
+
+// Inline Solana address validation
+function normalizeWalletAddress(address: string): string {
+  return address.trim()
+}
+
+function isValidSolanaAddress(address: string): boolean {
+  return address.length >= 32 && address.length <= 44
+}
 import { auditLogger } from './audit-logger';
 import { buildHeaders } from './client-database-utils';
 
@@ -39,8 +47,8 @@ if (typeof window === 'undefined') {
       rateLimiters = redisModule.rateLimiters;
     })
     .catch((error) => {
-      secureLogger.warn('Redis rate limiter not available, running without rate limiting', { 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      secureLogger.warn('Redis rate limiter not available, running without rate limiting', {
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     });
 }
@@ -133,16 +141,16 @@ class CryptoApiService {
   private readonly MIN_TRANSACTION_AMOUNT = 0.001; // Minimum transaction amount
   private readonly DAILY_TRANSACTION_LIMIT = 50000; // $50K daily limit
   private readonly SUPPORTED_TOKENS = ['SOL', 'USDC', 'USDT', 'BONK', 'JUP'];
-  
+
   private lastRequestTime = 0;
   private requestQueue: (() => Promise<void>)[] = [];
   private isProcessingQueue = false;
   private dailyTransactionVolume: Map<string, number> = new Map(); // wallet -> daily volume
   private transactionHistory: Map<string, TransactionResponse[]> = new Map(); // wallet -> transactions
-  
+
   private priceCache: Map<string, { data: CryptoPrice; timestamp: number }> = new Map();
   private marketCache: Map<string, { data: MarketData; timestamp: number }> = new Map();
-  
+
   // Rate limiting properties
   private rateLimitMax = 100; // Max requests per window
   private rateLimitWindow = 60; // Window in seconds (1 minute)
@@ -159,7 +167,7 @@ class CryptoApiService {
         await rateLimiters.transactions.initialize();
         await rateLimiters.auth.initialize();
         await rateLimiters.prices.initialize();
-        
+
         secureLogger.info('Crypto API service initialized with Redis rate limiting');
       } catch (error) {
         secureLogger.error('Failed to initialize Redis rate limiting', error);
@@ -181,8 +189,8 @@ class CryptoApiService {
       if (rateLimiters) {
         const rateLimiter = rateLimiters[operation];
         if (rateLimiter.isAvailable()) {
-          const result = await rateLimiter.consume(`${operation}:${this.getClientId()}`);
-          
+          const result = await rateLimiter.consume(`${operation}:${this.getClientId()} `);
+
           if (!result.allowed) {
             secureLogger.warn('Rate limit exceeded', {
               operation,
@@ -204,11 +212,11 @@ class CryptoApiService {
               }
             });
           }
-          
+
           return result.allowed;
         }
       }
-      
+
       // Fallback to in-memory rate limiting
       return this.checkInMemoryRateLimit(operation);
     } catch (error) {
@@ -235,10 +243,10 @@ class CryptoApiService {
       if (rateLimiters) {
         const rateLimiter = rateLimiters[operation];
         if (rateLimiter.isAvailable()) {
-          return await rateLimiter.getStatus(`${operation}:${this.getClientId()}`);
+          return await rateLimiter.getStatus(`${operation}:${this.getClientId()} `);
         }
       }
-      
+
       // Fallback to in-memory status
       return this.getInMemoryRateLimitStatus(operation);
     } catch (error) {
@@ -257,18 +265,18 @@ class CryptoApiService {
    */
   private checkInMemoryRateLimit(operation: string): boolean {
     const now = Date.now();
-    const key = `rate_limit_${operation}`;
+    const key = `rate_limit_${operation} `;
     const windowMs = this.rateLimitWindow * 1000;
-    
+
     if (!this.rateLimitMap.has(key)) {
       this.rateLimitMap.set(key, []);
     }
-    
+
     const timestamps = this.rateLimitMap.get(key)!;
-    
+
     // Remove old timestamps outside the window
     const validTimestamps = timestamps.filter(timestamp => now - timestamp < windowMs);
-    
+
     if (validTimestamps.length >= this.rateLimitMax) {
       const oldestRequest = Math.min(...validTimestamps);
       const retryAfter = Math.ceil((oldestRequest + windowMs - now) / 1000);
@@ -280,11 +288,11 @@ class CryptoApiService {
       });
       return false;
     }
-    
+
     // Add current timestamp
     validTimestamps.push(now);
     this.rateLimitMap.set(key, validTimestamps);
-    
+
     return true;
   }
 
@@ -292,10 +300,10 @@ class CryptoApiService {
    * Get in-memory rate limit status
    */
   private getInMemoryRateLimitStatus(operation: string): RateLimitResult {
-    const key = `rate_limit_${operation}`;
+    const key = `rate_limit_${operation} `;
     const now = Date.now();
     const windowMs = this.rateLimitWindow * 1000;
-    
+
     if (!this.rateLimitMap.has(key)) {
       return {
         allowed: true,
@@ -304,14 +312,14 @@ class CryptoApiService {
         resetTime: new Date(now + windowMs)
       };
     }
-    
+
     const timestamps = this.rateLimitMap.get(key)!;
     const validTimestamps = timestamps.filter(timestamp => now - timestamp < windowMs);
     const currentRequests = validTimestamps.length;
-    const resetTime = validTimestamps.length > 0 
+    const resetTime = validTimestamps.length > 0
       ? new Date(Math.max(...validTimestamps) + windowMs)
       : new Date(now + windowMs);
-    
+
     return {
       allowed: currentRequests < this.rateLimitMax,
       current: currentRequests,
@@ -324,12 +332,12 @@ class CryptoApiService {
   private async enforceRateLimit(): Promise<void> {
     const now = Date.now();
     const timeSinceLastRequest = now - this.lastRequestTime;
-    
+
     if (timeSinceLastRequest < this.RATE_LIMIT_DELAY) {
       const waitTime = this.RATE_LIMIT_DELAY - timeSinceLastRequest;
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-    
+
     this.lastRequestTime = Date.now();
   }
 
@@ -338,9 +346,9 @@ class CryptoApiService {
     if (this.isProcessingQueue || this.requestQueue.length === 0) {
       return;
     }
-    
+
     this.isProcessingQueue = true;
-    
+
     while (this.requestQueue.length > 0) {
       const request = this.requestQueue.shift();
       if (request) {
@@ -348,7 +356,7 @@ class CryptoApiService {
         await request();
       }
     }
-    
+
     this.isProcessingQueue = false;
   }
 
@@ -362,12 +370,12 @@ class CryptoApiService {
       return await apiCall();
     } catch (error) {
       secureLogger.error(errorMessage || 'API call failed', error);
-      
+
       if (fallbackData) {
         secureLogger.warn('Using fallback data');
         return fallbackData;
       }
-      
+
       throw error;
     }
   }
@@ -400,7 +408,7 @@ class CryptoApiService {
     try {
       // Use our proxy API route to avoid CORS and rate limiting issues
       const ids = uncachedSymbols.map(s => s.toLowerCase()).join(',');
-      const response = await fetch(`/api/crypto/prices?ids=${ids}&vs_currencies=usd`, {
+      const response = await fetch(`/ api / crypto / prices ? ids = ${ids}& vs_currencies=usd`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -452,13 +460,13 @@ class CryptoApiService {
       return [...cachedPrices, ...prices];
     } catch (error) {
       secureLogger.error('Failed to fetch crypto prices', error);
-      
+
       // Return cached data if available, otherwise throw error
       if (cachedPrices.length > 0) {
         secureLogger.warn('Using cached prices due to API error');
         return cachedPrices;
       }
-      
+
       throw error;
     }
   }
@@ -472,14 +480,14 @@ class CryptoApiService {
 
     const now = Date.now();
     const cached = this.marketCache.get(symbol.toLowerCase());
-    
+
     if (cached && now - cached.timestamp < this.CACHE_DURATION) {
       return cached.data;
     }
 
     try {
       // Use our proxy API route to avoid CORS and rate limiting issues
-      const response = await fetch(`/api/crypto/market-data?symbol=${symbol}`, {
+      const response = await fetch(`/ api / crypto / market - data ? symbol = ${symbol} `, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -491,19 +499,19 @@ class CryptoApiService {
       }
 
       const data = await response.json();
-      
+
       // Cache the result
       this.marketCache.set(symbol.toLowerCase(), { data, timestamp: now });
       return data;
     } catch (error) {
       secureLogger.error('Failed to fetch market data', error);
-      
+
       // Return cached data if available, otherwise throw error
       if (cached) {
         secureLogger.warn('Using cached market data due to API error');
         return cached.data;
       }
-      
+
       throw error;
     }
   }
@@ -520,10 +528,10 @@ class CryptoApiService {
       const validationResult = await this.validateTransaction(request);
       if (!validationResult.isValid) {
         const errorMessage = validationResult.errors.join('; ');
-        secureLogger.warn('Transaction validation failed', { 
-          request, 
+        secureLogger.warn('Transaction validation failed', {
+          request,
           errors: validationResult.errors,
-          warnings: validationResult.warnings 
+          warnings: validationResult.warnings
         });
         // Log validation failure for audit
         auditLogger.logValidationViolation({
@@ -536,7 +544,7 @@ class CryptoApiService {
             validationWarnings: validationResult.warnings
           }
         });
-        throw new Error(`Transaction validation failed: ${errorMessage}`);
+        throw new Error(`Transaction validation failed: ${errorMessage} `);
       }
 
       // Log warnings if any
@@ -616,10 +624,10 @@ class CryptoApiService {
         throw new Error('Amount must be greater than zero');
       }
       if (request.amount < this.MIN_TRANSACTION_AMOUNT) {
-        throw new Error(`Amount must be at least ${this.MIN_TRANSACTION_AMOUNT}`);
+        throw new Error(`Amount must be at least ${this.MIN_TRANSACTION_AMOUNT} `);
       }
       if (request.amount > this.MAX_TRANSACTION_AMOUNT) {
-        throw new Error(`Amount exceeds maximum limit of ${this.MAX_TRANSACTION_AMOUNT}`);
+        throw new Error(`Amount exceeds maximum limit of ${this.MAX_TRANSACTION_AMOUNT} `);
       }
 
       // Validate token
@@ -627,7 +635,7 @@ class CryptoApiService {
         throw new Error('Token is required');
       }
       if (!this.SUPPORTED_TOKENS.includes(request.token.toUpperCase())) {
-        throw new Error(`Unsupported token: ${request.token}. Supported tokens: ${this.SUPPORTED_TOKENS.join(', ')}`);
+        throw new Error(`Unsupported token: ${request.token}. Supported tokens: ${this.SUPPORTED_TOKENS.join(', ')} `);
       }
 
       const response = await fetch('/api/transactions/deposit', {
@@ -710,10 +718,10 @@ class CryptoApiService {
         throw new Error('Amount must be greater than zero');
       }
       if (request.amount < this.MIN_TRANSACTION_AMOUNT) {
-        throw new Error(`Amount must be at least ${this.MIN_TRANSACTION_AMOUNT}`);
+        throw new Error(`Amount must be at least ${this.MIN_TRANSACTION_AMOUNT} `);
       }
       if (request.amount > this.MAX_TRANSACTION_AMOUNT) {
-        throw new Error(`Amount exceeds maximum limit of ${this.MAX_TRANSACTION_AMOUNT}`);
+        throw new Error(`Amount exceeds maximum limit of ${this.MAX_TRANSACTION_AMOUNT} `);
       }
 
       // Validate token
@@ -721,14 +729,14 @@ class CryptoApiService {
         throw new Error('Token is required');
       }
       if (!this.SUPPORTED_TOKENS.includes(request.token.toUpperCase())) {
-        throw new Error(`Unsupported token: ${request.token}. Supported tokens: ${this.SUPPORTED_TOKENS.join(', ')}`);
+        throw new Error(`Unsupported token: ${request.token}. Supported tokens: ${this.SUPPORTED_TOKENS.join(', ')} `);
       }
 
       // Check daily limits
       const dailyVolume = this.getDailyTransactionVolume(request.walletAddress);
       const projectedVolume = dailyVolume + request.amount;
       if (projectedVolume > this.DAILY_TRANSACTION_LIMIT) {
-        throw new Error(`Daily transaction limit exceeded. Current: ${dailyVolume}, Limit: ${this.DAILY_TRANSACTION_LIMIT}`);
+        throw new Error(`Daily transaction limit exceeded.Current: ${dailyVolume}, Limit: ${this.DAILY_TRANSACTION_LIMIT} `);
       }
 
       const response = await fetch('/api/transactions/withdraw', {
@@ -790,7 +798,7 @@ class CryptoApiService {
         throw new Error('Invalid wallet address format');
       }
 
-      const response = await fetch(`/api/transactions/history?walletAddress=${walletAddress}&limit=${limit}`, {
+      const response = await fetch(`/ api / transactions / history ? walletAddress = ${walletAddress}& limit=${limit} `, {
         headers: {
           ...buildHeaders(),
         },
@@ -805,7 +813,7 @@ class CryptoApiService {
         ...tx,
         timestamp: new Date(tx.timestamp),
       }));
-      
+
       secureLogger.info('Transaction history retrieved', {
         walletAddress,
         transactionCount: transactions.length,
@@ -826,7 +834,7 @@ class CryptoApiService {
         throw new Error('Transaction hash is required');
       }
 
-      const response = await fetch(`/api/transactions/status/${txHash}`, {
+      const response = await fetch(`/ api / transactions / status / ${txHash} `, {
         headers: {
           ...buildHeaders(),
         },
@@ -867,7 +875,7 @@ class CryptoApiService {
       }
 
       const limits = this.getTransactionLimits(walletAddress);
-      
+
       secureLogger.info('Wallet limits retrieved', {
         walletAddress,
         limits
@@ -941,7 +949,7 @@ class CryptoApiService {
       const totalTransactions = transactions.length;
       const totalVolume = transactions.reduce((sum, tx) => sum + tx.amount, 0);
       const averageTransactionSize = totalTransactions > 0 ? totalVolume / totalTransactions : 0;
-      const recentTransactions = transactions.filter(tx => 
+      const recentTransactions = transactions.filter(tx =>
         (Date.now() - tx.timestamp.getTime()) < 24 * 60 * 60 * 1000 // Last 24 hours
       ).length;
 
@@ -968,7 +976,7 @@ class CryptoApiService {
   async getExchangeRates(fromSymbol: string, toSymbol: string): Promise<number> {
     try {
       const response = await fetch(
-        `${this.BASE_URL}/simple/price?ids=${fromSymbol.toLowerCase()}&vs_currencies=${toSymbol.toLowerCase()}`
+        `${this.BASE_URL} /simple/price ? ids = ${fromSymbol.toLowerCase()}& vs_currencies=${toSymbol.toLowerCase()} `
       );
 
       if (!response.ok) {
@@ -1066,23 +1074,23 @@ class CryptoApiService {
       if (request.amount <= 0) {
         errors.push('Amount must be greater than zero');
       } else if (request.amount < this.MIN_TRANSACTION_AMOUNT) {
-        errors.push(`Amount must be at least ${this.MIN_TRANSACTION_AMOUNT}`);
+        errors.push(`Amount must be at least ${this.MIN_TRANSACTION_AMOUNT} `);
       } else if (request.amount > this.MAX_TRANSACTION_AMOUNT) {
-        errors.push(`Amount exceeds maximum limit of ${this.MAX_TRANSACTION_AMOUNT}`);
+        errors.push(`Amount exceeds maximum limit of ${this.MAX_TRANSACTION_AMOUNT} `);
       }
 
       // Validate token
       if (!request.token) {
         errors.push('Token is required');
       } else if (!this.SUPPORTED_TOKENS.includes(request.token.toUpperCase())) {
-        errors.push(`Unsupported token: ${request.token}. Supported tokens: ${this.SUPPORTED_TOKENS.join(', ')}`);
+        errors.push(`Unsupported token: ${request.token}. Supported tokens: ${this.SUPPORTED_TOKENS.join(', ')} `);
       }
 
       // Check daily limits
       const dailyVolume = this.getDailyTransactionVolume(request.walletAddress);
       const projectedVolume = dailyVolume + request.amount;
       if (projectedVolume > this.DAILY_TRANSACTION_LIMIT) {
-        errors.push(`Daily transaction limit exceeded. Current: ${dailyVolume}, Limit: ${this.DAILY_TRANSACTION_LIMIT}`);
+        errors.push(`Daily transaction limit exceeded.Current: ${dailyVolume}, Limit: ${this.DAILY_TRANSACTION_LIMIT} `);
       }
 
       // Check for suspicious patterns
@@ -1097,8 +1105,8 @@ class CryptoApiService {
 
       // Check recent transaction history for duplicate requests
       const recentTransactions = this.getRecentTransactions(request.walletAddress, 5);
-      const duplicateTransaction = recentTransactions.find(tx => 
-        tx.toAddress === request.toAddress && 
+      const duplicateTransaction = recentTransactions.find(tx =>
+        tx.toAddress === request.toAddress &&
         Math.abs(tx.amount - request.amount) < 0.001 &&
         (Date.now() - tx.timestamp.getTime()) < 60000 // Within 1 minute
       );
@@ -1159,12 +1167,12 @@ class CryptoApiService {
     const walletAddress = transaction.fromAddress;
     const transactions = this.transactionHistory.get(walletAddress) || [];
     transactions.push(transaction);
-    
+
     // Keep only last 100 transactions per wallet
     if (transactions.length > 100) {
       transactions.shift();
     }
-    
+
     this.transactionHistory.set(walletAddress, transactions);
   }
 

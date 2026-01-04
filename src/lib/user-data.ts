@@ -2,7 +2,11 @@
 import { UserProfileManager, UserStatsManager, UserPreferencesManager } from './database-utils'
 import { ClientUserProfileManager, ClientUserPreferencesManager } from './client-database-utils'
 import { secureLogger, secureLogUtils } from './secure-logger'
-import { normalizeWalletAddress } from './wallet-utils'
+
+// Inline wallet address validation
+function normalizeWalletAddress(address: string): string {
+  return address.trim().toLowerCase()
+}
 import { UserProfileInsert } from './database-types'
 
 export interface UserProfile {
@@ -141,7 +145,7 @@ export const userProfileManager = {
       if (!dbProfile) return null
 
       const dbPrefs = await ClientUserPreferencesManager.getPreferences(normalizedAddress)
-      
+
       return await convertDbProfileToLegacy(
         {
           id: dbProfile.id,
@@ -390,7 +394,7 @@ export const userStatsManager = {
       if (!existingStats) {
         existingStats = await userStatsManager.initializeStats(walletAddress)
       }
-      
+
       const updatedStats = {
         ...existingStats,
         ...updates,
@@ -410,7 +414,7 @@ export const userStatsManager = {
 
 // Utility functions
 export const formatDisplayName = (name: string): string => {
-  return name.trim().split(' ').map(word => 
+  return name.trim().split(' ').map(word =>
     word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   ).join(' ');
 }
@@ -521,8 +525,8 @@ export const validateProfileUpdate = (updates: Partial<UserProfile>): { isValid:
 
 // Enhanced profile update function with validation and error handling
 export const patchProfile = async (
-  userId: string, 
-  updates: Partial<UserProfile>, 
+  userId: string,
+  updates: Partial<UserProfile>,
   options: { validate?: boolean; preserveSocial?: boolean } = {}
 ): Promise<UserProfile> => {
   const { validate = true, preserveSocial = true } = options
@@ -544,7 +548,7 @@ export const patchProfile = async (
 
     // Map camelCase to snake_case for database
     const mappedUpdates: Partial<UserProfileInsert> = {}
-    
+
     // Map supported fields
     if (updates.displayName !== undefined) mappedUpdates.display_name = updates.displayName
     if (updates.avatarUrl !== undefined) mappedUpdates.avatar_url = updates.avatarUrl
@@ -561,7 +565,7 @@ export const patchProfile = async (
 
     // Convert back to client format and preserve social fields if needed
     let resultProfile = await convertDbProfileToLegacy(updatedDbProfile, null)
-    
+
     if (preserveSocial && existingProfile) {
       // Preserve existing social fields if not explicitly updated
       resultProfile = {
@@ -605,13 +609,13 @@ export const patchProfile = async (
 export const getGreeting = (name: string): string => {
   const hour = new Date().getHours();
   let timeGreeting = 'Good morning';
-  
+
   if (hour >= 12 && hour < 17) {
     timeGreeting = 'Good afternoon';
   } else if (hour >= 17) {
     timeGreeting = 'Good evening';
   }
-  
+
   return `${timeGreeting}, ${name}!`;
 };
 

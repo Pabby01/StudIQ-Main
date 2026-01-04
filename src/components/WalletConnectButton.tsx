@@ -2,11 +2,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { secureLogger } from '@/lib/secure-logger';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -14,11 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
-  Wallet, 
-  ChevronDown, 
-  Copy, 
-  ExternalLink, 
+import {
+  Wallet,
+  ChevronDown,
+  Copy,
+  ExternalLink,
   LogOut,
   User,
   Mail,
@@ -33,15 +33,11 @@ import { toast } from 'react-hot-toast';
 
 export default function WalletConnectButton() {
   const {
-    isReady,
-    isAuthenticated,
-    isLoading,
-    user,
-    login,
-    logout,
-    walletAddress,
-    hasWallet
-  } = useAuth();
+    connected: isAuthenticated,
+    address: walletAddress,
+    connect: login,
+    disconnect: logout
+  } = useWalletAuth();
 
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle');
 
@@ -72,12 +68,12 @@ export default function WalletConnectButton() {
     }
 
     setCopyState('copying');
-    
+
     try {
       await navigator.clipboard.writeText(text);
       setCopyState('copied');
       toast.success('Wallet address copied to clipboard!');
-      
+
       // Reset copy state after 2 seconds
       setTimeout(() => {
         setCopyState('idle');
@@ -110,37 +106,17 @@ export default function WalletConnectButton() {
     }
   };
 
-  // Loading state
-  if (!isReady) {
-    return (
-      <Button variant="outline" size="sm" disabled>
-        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        Loading...
-      </Button>
-    );
-  }
-
   // Not authenticated - show connect button
   if (!isAuthenticated) {
     return (
-      <Button 
-        variant="outline" 
-        size="sm" 
+      <Button
+        variant="outline"
+        size="sm"
         onClick={handleConnect}
-        disabled={isLoading}
         className="min-w-[120px]"
       >
-        {isLoading ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Connecting...
-          </>
-        ) : (
-          <>
-            <Wallet className="h-4 w-4 mr-2" />
-            Connect Wallet
-          </>
-        )}
+        <Wallet className="h-4 w-4 mr-2" />
+        Connect Wallet
       </Button>
     );
   }
@@ -156,8 +132,8 @@ export default function WalletConnectButton() {
   }
 
   // Authenticated - show user info
-  const displayText = user?.displayName || formatAddress(walletAddress || '');
-  
+  const displayText = formatAddress(walletAddress || '');
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -170,35 +146,12 @@ export default function WalletConnectButton() {
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>Account</span>
-          {user?.isNewUser && (
-            <Badge variant="secondary" className="text-xs">
-              New
-            </Badge>
-          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        
-        {/* User Profile Info */}
-        {user && (
-          <>
-            <DropdownMenuItem disabled className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
-                {user.avatar || user.displayName.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div className="font-medium">{user.displayName}</div>
-                {walletAddress && (
-                  <div className="text-xs text-gray-500">{formatAddress(walletAddress)}</div>
-                )}
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        
+
         {/* Wallet Address */}
         {walletAddress && (
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={() => copyToClipboard(walletAddress)}
             className="font-mono text-xs"
           >
@@ -212,24 +165,9 @@ export default function WalletConnectButton() {
             <span className="truncate">{walletAddress}</span>
           </DropdownMenuItem>
         )}
-        
-        {/* Account Info */}
-        {user?.email && (
-          <DropdownMenuItem disabled>
-            <Mail className="h-4 w-4 mr-2" />
-            {user.email}
-          </DropdownMenuItem>
-        )}
-        
-        {user?.phone && (
-          <DropdownMenuItem disabled>
-            <Phone className="h-4 w-4 mr-2" />
-            {user.phone}
-          </DropdownMenuItem>
-        )}
-        
+
         <DropdownMenuSeparator />
-        
+
         {/* Navigation Links */}
         <DropdownMenuItem asChild>
           <Link href="/profile">
@@ -237,19 +175,19 @@ export default function WalletConnectButton() {
             Profile Settings
           </Link>
         </DropdownMenuItem>
-        
+
         {walletAddress && (
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={() => openSolscanExplorer(walletAddress)}
           >
             <ExternalLink className="h-4 w-4 mr-2" />
             View on Solscan
           </DropdownMenuItem>
         )}
-        
+
         <DropdownMenuSeparator />
-        
-        <DropdownMenuItem onClick={handleLogout} disabled={isLoading}>
+
+        <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="h-4 w-4 mr-2" />
           {isLoading ? 'Signing out...' : 'Sign Out'}
         </DropdownMenuItem>
