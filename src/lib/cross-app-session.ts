@@ -1,7 +1,7 @@
 /**
  * Cross-App Session Manager (Client-Side Version)
  * 
- * Manages wallet sessions across studiq.app and store.studiq.fun
+ * Manages wallet sessions across www.studiq.fun and store.studiq.fun
  * Uses localStorage for cross-domain session persistence
  * 
  * NOTE: This is the CLIENT-SIDE version - no JWT signing needed here

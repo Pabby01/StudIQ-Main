@@ -150,7 +150,7 @@ let syncClientInstance: BidirectionalSyncClient | null = null
 export function getSyncClient(): BidirectionalSyncClient {
     if (!syncClientInstance) {
         syncClientInstance = new BidirectionalSyncClient({
-            mainAppUrl: process.env.NEXT_PUBLIC_MAIN_APP_URL || 'https://studiq.app',
+            mainAppUrl: process.env.NEXT_PUBLIC_MAIN_APP_URL || 'https://www.studiq.fun',
             storeUrl: process.env.NEXT_PUBLIC_STORE_URL || 'https://store.studiq.fun',
             apiKey: process.env.SYNC_API_KEY
         })
