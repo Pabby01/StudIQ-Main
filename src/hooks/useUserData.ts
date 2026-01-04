@@ -1,7 +1,7 @@
 import { useWalletAuth } from '@/hooks/useWalletAuth'
 import { useCallback, useEffect, useState } from 'react'
 import { secureLogger } from '@/lib/secure-logger'
-import { buildHeaders } from '@/lib/client-database-utils'
+import { buildHeaders, setWalletAddress } from '@/lib/client-database-utils'
 import { patchProfile, validateProfileUpdate } from '@/lib/user-data'
 
 // Helper function to convert user-data.ts UserProfile to hook UserProfile
@@ -101,6 +101,18 @@ export function useUserData(): UseUserDataReturn {
 
   const userId = address
   const authenticated = connected
+
+  // Set wallet address for API auth headers when wallet connects
+  useEffect(() => {
+    if (address) {
+      setWalletAddress(address)
+      secureLogger.info('Wallet address set for API authentication', {
+        address: address.substring(0, 8) + '...'
+      })
+    } else {
+      setWalletAddress(null)
+    }
+  }, [address])
 
   // Helper: safely parse JSON, treating 404 as empty
   const parseJSONSafe = useCallback(async (response: Response) => {
