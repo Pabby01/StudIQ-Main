@@ -2,7 +2,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { validateWalletAddress } from '@/lib/auth-middleware';
 
 interface UseWalletAddressReturn {
@@ -17,10 +17,10 @@ interface UseWalletAddressReturn {
  * Provides consistent wallet address access across components
  */
 export function useWalletAddress(): UseWalletAddressReturn {
-  const { authenticated, user } = usePrivy();
+  const { address, connected } = useWalletAuth();
 
   const walletData = useMemo(() => {
-    if (!authenticated || !user) {
+    if (!connected || !address) {
       return {
         address: null,
         isValid: false,
@@ -29,34 +29,16 @@ export function useWalletAddress(): UseWalletAddressReturn {
       };
     }
 
-    // Get wallet address from user object
-    let address: string | null = null;
-
-    // Check direct wallet property
-    if (user.wallet?.address) {
-      address = user.wallet.address;
-    } else {
-      // Check linked accounts for wallet
-      const linkedWallet = user.linkedAccounts?.find(
-        (account: any) => account.type === 'wallet'
-      ) as any;
-      if (linkedWallet?.address) {
-        address = linkedWallet.address;
-      }
-    }
-
-    const isValid = address ? validateWalletAddress(address) : false;
-    const shortAddress = address 
-      ? `${address.slice(0, 4)}...${address.slice(-4)}`
-      : null;
+    const isValid = validateWalletAddress(address);
+    const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
 
     return {
       address,
       isValid,
-      isConnected: !!address,
+      isConnected: true,
       shortAddress,
     };
-  }, [authenticated, user]);
+  }, [connected, address]);
 
   return walletData;
 }

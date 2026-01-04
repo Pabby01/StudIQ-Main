@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { useWalletAuth } from '@/hooks/useWalletAuth';
 import { useWalletAddress } from './useWalletAddress';
 import { walletDataService } from '@/lib/wallet-data';
 import { secureLogger } from '@/lib/secure-logger';
@@ -63,7 +63,7 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
     enableWebSocketSync = true,
   } = options;
 
-  const { authenticated } = usePrivy();
+  const { connected } = useWalletAuth();
   const walletAddress = useWalletAddress();
   const [localState, setLocalState] = useState<WalletBalanceState>(globalBalanceState);
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,7 +91,7 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
 
   // Refresh balance data
   const refreshBalance = useCallback(async () => {
-    if (!authenticated || !walletAddress.isValid || isLoadingRef.current) {
+    if (!connected || !walletAddress.isValid || isLoadingRef.current) {
       return;
     }
 
@@ -105,7 +105,7 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
 
     try {
       const address = walletAddress.address!;
-      
+
       secureLogger.info('Refreshing wallet balance', {
         walletAddress: address.slice(0, 8) + '...',
         timestamp: new Date().toISOString(),
@@ -139,7 +139,7 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch wallet balance';
-      
+
       secureLogger.error('Wallet balance refresh failed', {
         error: errorMessage,
         walletAddress: walletAddress.address?.slice(0, 8) + '...',
@@ -160,7 +160,7 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
     } finally {
       isLoadingRef.current = false;
     }
-  }, [authenticated, walletAddress.isValid, walletAddress.address]);
+  }, [connected, walletAddress.isValid, walletAddress.address]);
 
   // Force refresh (ignores loading state)
   const forceRefresh = useCallback(async () => {
@@ -170,7 +170,7 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
 
   // Auto-refresh setup
   useEffect(() => {
-    if (!autoRefresh || !authenticated || !walletAddress.isValid) {
+    if (!autoRefresh || !connected || !walletAddress.isValid) {
       return;
     }
 
@@ -200,11 +200,11 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
         refreshTimeoutRef.current = null;
       }
     };
-  }, [autoRefresh, authenticated, walletAddress.isValid, refreshBalance, refreshInterval]);
+  }, [autoRefresh, connected, walletAddress.isValid, refreshBalance, refreshInterval]);
 
   // WebSocket subscription for real-time updates
   useEffect(() => {
-    if (!enableWebSocketSync || !authenticated || !walletAddress.isValid || !walletAddress.address) {
+    if (!enableWebSocketSync || !connected || !walletAddress.isValid || !walletAddress.address) {
       return;
     }
 
@@ -214,7 +214,7 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
       try {
         // Connect to WebSocket service
         await websocketService.connect();
-        
+
         secureLogger.info('Setting up WebSocket subscription for wallet balance', {
           walletAddress: walletAddress.address!.slice(0, 8) + '...',
         });
@@ -230,20 +230,20 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
             });
 
             // Update global state with WebSocket data
-             const updatedBalance: WalletBalance = {
-               totalUsdValue: portfolioUpdate.totalUsdValue,
-               solBalance: portfolioUpdate.balance,
-               tokens: portfolioUpdate.tokenUpdates.map(token => ({
-                 mint: token.mint,
-                 symbol: token.symbol,
-                 name: token.symbol, // Use symbol as name fallback
-                 balance: token.balance, // Raw balance amount
-                 decimals: 9, // Default for most tokens
-                 uiAmount: token.balance,
-                 usdValue: token.usdValue,
-               })),
-               lastUpdated: new Date(),
-             };
+            const updatedBalance: WalletBalance = {
+              totalUsdValue: portfolioUpdate.totalUsdValue,
+              solBalance: portfolioUpdate.balance,
+              tokens: portfolioUpdate.tokenUpdates.map(token => ({
+                mint: token.mint,
+                symbol: token.symbol,
+                name: token.symbol, // Use symbol as name fallback
+                balance: token.balance, // Raw balance amount
+                decimals: 9, // Default for most tokens
+                uiAmount: token.balance,
+                usdValue: token.usdValue,
+              })),
+              lastUpdated: new Date(),
+            };
 
             const newState: WalletBalanceState = {
               ...globalBalanceState,
@@ -271,7 +271,7 @@ export function useWalletBalance(options: UseWalletBalanceOptions = {}): UseWall
         unsubscribe();
       }
     };
-  }, [enableWebSocketSync, authenticated, walletAddress.isValid, walletAddress.address]);
+  }, [enableWebSocketSync, connected, walletAddress.isValid, walletAddress.address]);
 
   // Cleanup on unmount
   useEffect(() => {

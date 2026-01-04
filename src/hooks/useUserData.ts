@@ -1,4 +1,4 @@
-import { usePrivy } from '@privy-io/react-auth'
+import { useWalletAuth } from '@/hooks/useWalletAuth'
 import { useCallback, useEffect, useState } from 'react'
 import { secureLogger } from '@/lib/secure-logger'
 import { buildHeaders } from '@/lib/client-database-utils'
@@ -88,7 +88,7 @@ export interface UseUserDataReturn extends UserData {
 }
 
 export function useUserData(): UseUserDataReturn {
-  const { user } = usePrivy()
+  const { address, connected } = useWalletAuth()
   const [userData, setUserData] = useState<UserData>({
     profile: null,
     stats: null,
@@ -99,8 +99,8 @@ export function useUserData(): UseUserDataReturn {
     lastUpdated: null
   })
 
-  const userId = user?.id
-  const authenticated = !!userId
+  const userId = address
+  const authenticated = connected
 
   // Helper: safely parse JSON, treating 404 as empty
   const parseJSONSafe = useCallback(async (response: Response) => {
@@ -119,28 +119,28 @@ export function useUserData(): UseUserDataReturn {
       setUserData(prev => ({ ...prev, isLoading: true, error: null }))
 
       const headers = buildHeaders()
-      
+
       // Log the headers to debug authentication
-      secureLogger.info('Fetching user data with headers', { 
-        userId: uid, 
+      secureLogger.info('Fetching user data with headers', {
+        userId: uid,
         hasAuthHeader: !!headers.Authorization,
         hasPrivyToken: !!headers['x-privy-token']
       })
-      
+
       // If no auth headers, wait a bit and try again
       if (!headers.Authorization && !headers['x-privy-token']) {
         secureLogger.warn('No authentication headers available, waiting and retrying...', { userId: uid })
         await new Promise(resolve => setTimeout(resolve, 1000))
-        
+
         // Try building headers again
         const retryHeaders = buildHeaders()
-        secureLogger.info('Retrying with headers', { 
-          userId: uid, 
+        secureLogger.info('Retrying with headers', {
+          userId: uid,
           hasAuthHeader: !!retryHeaders.Authorization,
           hasPrivyToken: !!retryHeaders['x-privy-token']
         })
       }
-      
+
       const [profileResponse, statsResponse, preferencesResponse, transactionsResponse] = await Promise.all([
         fetch(`/api/user/profile?user_id=${encodeURIComponent(uid)}`, { headers }),
         fetch(`/api/user/stats?user_id=${encodeURIComponent(uid)}`, { headers }),
@@ -276,7 +276,7 @@ export function useUserData(): UseUserDataReturn {
       const timer = setTimeout(() => {
         fetchUserData(userId)
       }, 1000) // Increased delay to 1 second
-      
+
       return () => clearTimeout(timer)
     } else {
       setUserData({
