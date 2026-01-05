@@ -9,6 +9,7 @@ export function middleware(request: NextRequest) {
         // Allow requests from both main app and campus store
         const origin = request.headers.get('origin')
         const allowedOrigins = [
+            'https://studiq.fun',
             'https://www.studiq.fun',
             'https://store.studiq.fun',
             'http://localhost:3000',
