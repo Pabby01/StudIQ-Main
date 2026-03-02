@@ -3,35 +3,56 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Upload, 
-  Search, 
-  Filter,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle
-} from 'lucide-react';
-import { walletDataService, Transaction } from '@/lib/wallet-data';
-import { heliusTransactionService, ProcessedTransaction } from '@/lib/helius-transaction-service';
-import { cn } from '@/lib/utils';
+import type { ChangeEvent } from 'react';
+import clsx from 'clsx';
 import { format } from 'date-fns';
+import { ArrowUpRight, ArrowDownLeft, Upload, Search, Filter, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { walletDataService, Transaction } from '@/lib/wallet-data';
+import { getHeliusService, TransactionData } from '@/lib/helius-rpc-service';
+const Card = ({ className, children }: { className?: string; children: React.ReactNode }) => (
+  <div className={cn("rounded-lg border bg-white p-4", className)}>{children}</div>
+);
+const CardHeader = ({ children }: { children: React.ReactNode }) => <div className="mb-4">{children}</div>;
+const CardContent = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+const CardTitle = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <h3 className={cn("text-lg font-semibold", className)}>{children}</h3>
+);
+const Button = ({
+  className,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { className?: string; variant?: string; size?: string }) => (
+  <button className={cn("border rounded px-3 py-1", className)} {...props}>{children}</button>
+);
+const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { className?: string }) => (
+  <input className={cn("border rounded px-3 py-2", className)} {...props} />
+);
+const Alert = ({ children, className, variant }: { children: React.ReactNode; className?: string; variant?: string }) => (
+  <div className={cn("rounded border border-red-200 bg-red-50 p-3 text-red-700", className)}>{children}</div>
+);
+const AlertDescription = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+const Badge = ({ children, className, variant }: { children: React.ReactNode; className?: string; variant?: 'outline' | 'default' | 'destructive' | 'secondary' }) => {
+  const base = "inline-flex items-center rounded px-2 py-1 text-xs";
+  const variantClass =
+    variant === 'destructive' ? "bg-red-100 text-red-700" :
+    variant === 'default' ? "bg-gray-100 text-gray-800" :
+    "border border-gray-300 text-gray-700";
+  return <span className={cn(base, variantClass, className)}>{children}</span>;
+};
+const Table = ({ children }: { children: React.ReactNode }) => <table className="min-w-full text-sm">{children}</table>;
+const TableHeader = ({ children }: { children: React.ReactNode }) => <thead>{children}</thead>;
+const TableBody = ({ children }: { children: React.ReactNode }) => <tbody>{children}</tbody>;
+const TableRow = ({ children }: { children: React.ReactNode }) => <tr>{children}</tr>;
+const TableHead = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <th className={cn("text-left px-3 py-2", className)}>{children}</th>
+);
+const TableCell = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <td className={cn("px-3 py-2", className)}>{children}</td>
+);
+
+const cn = (...args: Parameters<typeof clsx>) => clsx(...args);
+
+type ProcessedTransaction = TransactionData & { description?: string };
 
 interface TransactionHistoryProps {
   walletAddress: string;
@@ -82,11 +103,10 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
       setIsLoading(true);
       setError(null);
       
-      // Use the new Helius transaction service
       if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(walletAddress)) {
         throw new Error('Invalid Solana wallet address');
       }
-      const history = await heliusTransactionService.getTransactionHistory(walletAddress, 50);
+      const history = await getHeliusService().getTransactionHistory(walletAddress, 50);
       setTransactions(history);
       
       // Set the last signature for polling
@@ -110,10 +130,12 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
     try {
       setIsPolling(true);
       
-      const newTransactions = await heliusTransactionService.getLatestTransactions(
-        walletAddress, 
-        lastSignature || undefined
-      );
+      const recent = await getHeliusService().getTransactionHistory(walletAddress, 10);
+      let newTransactions = recent;
+      if (lastSignature) {
+        const idx = recent.findIndex(tx => tx.signature === lastSignature);
+        newTransactions = idx === -1 ? recent : recent.slice(0, idx);
+      }
       
       if (newTransactions.length > 0) {
         setTransactions(prev => [...newTransactions, ...prev]);
@@ -137,7 +159,7 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
         (tx.from?.toLowerCase().includes(searchLower)) ||
         (tx.counterparty?.toLowerCase().includes(searchLower)) ||
         tx.signature.toLowerCase().includes(searchLower) ||
-        tx.description.toLowerCase().includes(searchLower)
+        tx.description?.toLowerCase().includes(searchLower)
       );
     }
 
@@ -224,8 +246,6 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
         return <ArrowDownLeft className="h-4 w-4 text-green-500" />;
       case 'swap':
         return <Upload className="h-4 w-4 text-blue-500" />;
-      case 'nft':
-        return <Upload className="h-4 w-4 text-purple-500" />;
       default:
         return <ArrowUpRight className="h-4 w-4 text-gray-500" />;
     }
@@ -328,56 +348,50 @@ export function TransactionHistory({ walletAddress, className }: TransactionHist
               <Input
                 placeholder="Search transactions..."
                 value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setFilters({ ...filters, search: e.target.value })}
                 className="pl-10"
               />
             </div>
             
-            <Select
+            <select
+              className="w-[140px] border rounded px-2 py-2"
               value={filters.type}
-              onValueChange={(value) => setFilters({ ...filters, type: value as 'all' | 'send' | 'receive' | 'deposit' | 'withdraw' })}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                setFilters({ ...filters, type: e.target.value as 'all' | 'send' | 'receive' | 'deposit' | 'withdraw' })
+              }
             >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="send">Send</SelectItem>
-                <SelectItem value="receive">Receive</SelectItem>
-                <SelectItem value="deposit">Deposit</SelectItem>
-                <SelectItem value="withdraw">Withdraw</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="all">All Types</option>
+              <option value="send">Send</option>
+              <option value="receive">Receive</option>
+              <option value="deposit">Deposit</option>
+              <option value="withdraw">Withdraw</option>
+            </select>
 
-            <Select
+            <select
+              className="w-[140px] border rounded px-2 py-2"
               value={filters.status}
-              onValueChange={(value) => setFilters({ ...filters, status: value as 'all' | 'pending' | 'confirmed' | 'failed' })}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                setFilters({ ...filters, status: e.target.value as 'all' | 'pending' | 'confirmed' | 'failed' })
+              }
             >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="failed">Failed</option>
+            </select>
 
-            <Select
+            <select
+              className="w-[140px] border rounded px-2 py-2"
               value={filters.dateRange}
-              onValueChange={(value) => setFilters({ ...filters, dateRange: value as 'all' | 'today' | 'week' | 'month' })}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                setFilters({ ...filters, dateRange: e.target.value as 'all' | 'today' | 'week' | 'month' })
+              }
             >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Date Range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
           </div>
         </div>
 
