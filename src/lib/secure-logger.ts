@@ -1,8 +1,6 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-interface LogMeta {
-  [key: string]: unknown;
-}
+type LogMeta = unknown;
 
 const redact = (value: unknown): unknown => {
   if (typeof value === 'string') {
@@ -27,7 +25,7 @@ const redact = (value: unknown): unknown => {
   return value;
 };
 
-const log = (level: LogLevel, message: string, meta?: LogMeta) => {
+const log = (level: LogLevel, message: string, meta?: unknown) => {
   const payload = meta ? redact(meta) : undefined;
   const ts = new Date().toISOString();
   // eslint-disable-next-line no-console
@@ -35,10 +33,10 @@ const log = (level: LogLevel, message: string, meta?: LogMeta) => {
 };
 
 export const secureLogger = {
-  debug: (message: string, meta?: LogMeta) => log('debug', message, meta),
-  info: (message: string, meta?: LogMeta) => log('info', message, meta),
-  warn: (message: string, meta?: LogMeta) => log('warn', message, meta),
-  error: (message: string, meta?: LogMeta) => log('error', message, meta),
+  debug: (message: string, meta?: unknown) => log('debug', message, meta),
+  info: (message: string, meta?: unknown) => log('info', message, meta),
+  warn: (message: string, meta?: unknown) => log('warn', message, meta),
+  error: (message: string, meta?: unknown) => log('error', message, meta),
 };
 
 export const secureLogUtils = {

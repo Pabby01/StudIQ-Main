@@ -3,7 +3,7 @@ import clsx from 'clsx';
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'default' | 'outline' | 'destructive' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'default';
   className?: string;
 };
 
@@ -29,10 +29,11 @@ export const Button: React.FC<ButtonProps> = ({
     md: 'text-sm px-4 py-2',
     lg: 'text-base px-5 py-2.5',
   } as const;
+  const resolvedSize = size === 'default' ? 'md' : size;
 
   return (
     <button
-      className={clsx(base, variants[variant], sizes[size], className)}
+      className={clsx(base, variants[variant], sizes[resolvedSize as 'sm' | 'md' | 'lg'], className)}
       {...props}
     >
       {children}

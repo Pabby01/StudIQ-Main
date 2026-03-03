@@ -3,12 +3,12 @@
 
 import { User as PrivyUser } from '@privy-io/react-auth'
 import { ClientUserProfileManager, ClientUserStatsManager, ClientUserPreferencesManager } from './client-database-utils'
-import { Database } from './database.types'
+import type { UserProfile as DbUserProfile, UserStats as DbUserStats, UserPreferences as DbUserPreferences } from './database-types'
 import { secureLogger, secureLogUtils } from './secure-logger'
 
-type UserProfile = Database['public']['Tables']['user_profiles']['Row']
-type UserStats = Database['public']['Tables']['user_stats']['Row']
-type UserPreferences = Database['public']['Tables']['user_preferences']['Row']
+type UserProfile = DbUserProfile
+type UserStats = DbUserStats
+type UserPreferences = DbUserPreferences
 
 export interface AuthUser {
   id: string

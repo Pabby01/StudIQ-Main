@@ -140,7 +140,12 @@ export const userProfileManager = {
       const dbProfile = await ClientUserProfileManager.getProfile(normalizedAddress)
       if (!dbProfile) return null
 
-      const dbPrefs = await ClientUserPreferencesManager.getPreferences(normalizedAddress)
+      const rawPrefs = await ClientUserPreferencesManager.getPreferences(normalizedAddress)
+      const dbPrefs = rawPrefs ? {
+        theme: rawPrefs.theme ?? undefined,
+        notifications_enabled: rawPrefs.notifications_enabled ?? undefined,
+        language: rawPrefs.language ?? undefined
+      } : null
       
       return await convertDbProfileToLegacy(
         {
@@ -279,7 +284,12 @@ export const userProfileManager = {
       const updatedDbProfile = await ClientUserProfileManager.updateProfile(walletAddress, mappedUpdates)
 
       // Convert the database response back to client format
-      const dbPrefs = await UserPreferencesManager.getPreferences(walletAddress)
+      const rawPrefs = await UserPreferencesManager.getPreferences(walletAddress)
+      const dbPrefs = rawPrefs ? {
+        theme: rawPrefs.theme ?? undefined,
+        notifications_enabled: rawPrefs.notifications_enabled ?? undefined,
+        language: rawPrefs.language ?? undefined
+      } : null
       return await convertDbProfileToLegacy(
         {
           id: updatedDbProfile.id,
