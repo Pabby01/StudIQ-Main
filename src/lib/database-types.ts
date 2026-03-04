@@ -30,6 +30,7 @@ export interface UserProfileInsert {
 }
 
 export interface UserStats {
+  id: string;
   user_id: string;
   total_points: number;
   level: number;
@@ -38,6 +39,8 @@ export interface UserStats {
   portfolio_value: number;
   total_cashback: number;
   last_activity: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserStatsInsert extends Partial<UserStats> {
@@ -45,13 +48,15 @@ export interface UserStatsInsert extends Partial<UserStats> {
 }
 
 export interface UserPreferences {
+  id: string;
   user_id: string;
   theme?: string | null;
   notifications_enabled?: boolean | null;
   language?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserPreferencesInsert extends Partial<UserPreferences> {
   user_id: string;
 }
-

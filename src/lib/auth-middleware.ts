@@ -183,8 +183,16 @@ export async function validatePrivySession(
     }
 
     // Decode and validate token payload
+    const decodePayload = (b64: string): any => {
+      try {
+        const json = Buffer.from(b64, 'base64').toString('utf-8');
+        return JSON.parse(json);
+      } catch {
+        return null;
+      }
+    };
     try {
-      const payload = JSON.parse(atob(tokenParts[1]));
+      const payload = decodePayload(tokenParts[1]);
       const tokenUserId = payload.sub || payload.user_id || payload.id;
       
       // Verify the token belongs to the requested user
@@ -245,7 +253,7 @@ export async function validatePrivySession(
     // Use the token user ID as the authoritative ID when available
     let finalUserId = requestedUserId;
     try {
-      const payload = JSON.parse(atob(tokenParts[1]));
+      const payload = decodePayload(tokenParts[1]);
       const tokenUserId = payload.sub || payload.user_id || payload.id;
       if (tokenUserId) {
         finalUserId = tokenUserId;

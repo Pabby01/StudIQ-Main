@@ -57,6 +57,7 @@ export class UserStatsManager {
   static async createStats(input: UserStatsInsert): Promise<UserStats> {
     const user_id = input.user_id
     const s: UserStats = {
+      id: user_id,
       user_id,
       total_points: input.total_points ?? 0,
       level: input.level ?? 1,
@@ -65,15 +66,22 @@ export class UserStatsManager {
       portfolio_value: input.portfolio_value ?? 0,
       total_cashback: input.total_cashback ?? 0,
       last_activity: input.last_activity ?? nowISO(),
+      created_at: nowISO(),
+      updated_at: nowISO(),
     }
     stats.set(user_id, s)
     return s
   }
   static async updateStats(userId: string, patch: Partial<UserStats>): Promise<UserStats> {
     const existing = stats.get(userId) ?? (await this.createStats({ user_id: userId }))
-    const next: UserStats = { ...existing, ...patch, user_id: userId }
+    const next: UserStats = { ...existing, ...patch, user_id: userId, id: userId, updated_at: nowISO() }
     stats.set(userId, next)
     return next
+  }
+  static async upsertStats(input: UserStatsInsert): Promise<UserStats> {
+    const existing = await this.getStats(input.user_id)
+    if (existing) return this.updateStats(input.user_id, input)
+    return this.createStats(input)
   }
 }
 
@@ -83,19 +91,26 @@ export class UserPreferencesManager {
   }
   static async createPreferences(input: UserPreferencesInsert): Promise<UserPreferences> {
     const p: UserPreferences = {
+      id: input.user_id,
       user_id: input.user_id,
       theme: input.theme ?? 'light',
       notifications_enabled: input.notifications_enabled ?? true,
       language: input.language ?? 'en',
+      created_at: nowISO(),
+      updated_at: nowISO(),
     }
     preferences.set(input.user_id, p)
     return p
   }
   static async updatePreferences(userId: string, patch: Partial<UserPreferences>): Promise<UserPreferences> {
     const existing = preferences.get(userId) ?? (await this.createPreferences({ user_id: userId }))
-    const next: UserPreferences = { ...existing, ...patch, user_id: userId }
+    const next: UserPreferences = { ...existing, ...patch, user_id: userId, id: userId, updated_at: nowISO() }
     preferences.set(userId, next)
     return next
   }
+  static async upsertPreferences(input: UserPreferencesInsert): Promise<UserPreferences> {
+    const existing = await this.getPreferences(input.user_id)
+    if (existing) return this.updatePreferences(input.user_id, input)
+    return this.createPreferences(input)
+  }
 }
-
