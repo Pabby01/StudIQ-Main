@@ -191,9 +191,17 @@ export async function validatePrivySession(
         return null;
       }
     };
+    const extractTokenUserId = (p: unknown): string | undefined => {
+      if (p && typeof p === 'object') {
+        const obj = p as Record<string, unknown>;
+        const candidate = obj.sub ?? obj.user_id ?? obj.id;
+        return typeof candidate === 'string' ? candidate : undefined;
+      }
+      return undefined;
+    };
     try {
       const payload = decodePayload(tokenParts[1]);
-      const tokenUserId = payload.sub || payload.user_id || payload.id;
+      const tokenUserId = extractTokenUserId(payload);
       
       // Verify the token belongs to the requested user
       // Handle different ID formats: Privy DIDs, wallet addresses, etc.
@@ -254,7 +262,7 @@ export async function validatePrivySession(
     let finalUserId = requestedUserId;
     try {
       const payload = decodePayload(tokenParts[1]);
-      const tokenUserId = payload.sub || payload.user_id || payload.id;
+      const tokenUserId = extractTokenUserId(payload);
       if (tokenUserId) {
         finalUserId = tokenUserId;
       }
