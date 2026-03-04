@@ -183,7 +183,7 @@ export async function validatePrivySession(
     }
 
     // Decode and validate token payload
-    const decodePayload = (b64: string): any => {
+    const decodePayload = (b64: string): unknown => {
       try {
         const json = Buffer.from(b64, 'base64').toString('utf-8');
         return JSON.parse(json);

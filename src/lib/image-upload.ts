@@ -1,4 +1,5 @@
-export function validateImageFile(_file: File): { valid: boolean; isValid: boolean; error?: string } {
+export function validateImageFile(file: File): { valid: boolean; isValid: boolean; error?: string } {
+  void file;
   return { valid: true, isValid: true };
 }
 

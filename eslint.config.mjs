@@ -18,6 +18,11 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "jest.config.js",
+      "check-user-data.js",
+      "check-user-data-simple.js",
+      "test-complete-flow.js",
+      "verify-user-data-api.js",
     ],
   },
 ];

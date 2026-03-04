@@ -1,5 +1,5 @@
 'use client';
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import clsx from 'clsx';
 
 type Ctx = {
@@ -36,6 +36,7 @@ export const SelectItem: React.FC<{ value: string; children: React.ReactNode }> 
   return (
     <div
       role="option"
+      aria-selected={false}
       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
       onClick={() => ctx.onValueChange?.(value)}
     >

@@ -52,30 +52,37 @@ export class UserProfileManager {
 
 export class TransactionManager {
   static async getTransactions(_userId: string): Promise<Array<{ id: string; amount: number; type: string; created_at: string }>> {
+    void _userId;
     return [];
   }
   static async getUserTransactions(userId: string): Promise<Array<{ id: string; amount: number; type: string; created_at: string }>> {
+    void userId;
     return [];
   }
   static async createTransaction(_data: any): Promise<{ id: string }> {
+    void _data;
     return { id: Math.random().toString(36).slice(2) };
   }
 }
 
 export class ChatManager {
   static async getUserSessions(userId: string): Promise<Array<{ id: string; title: string; subject: string | null; difficulty_level: string | null; created_at: string; updated_at: string; user_id: string }>> {
+    void userId;
     return [];
   }
   static async createSession(data: { user_id: string; title: string; subject: string | null; difficulty_level: string | null }) {
     return { id: Math.random().toString(36).slice(2), ...data, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
   }
   static async getSessionMessages(sessionId: string): Promise<Array<{ id: string; role: string; content: string; created_at: string; session_id: string }>> {
+    void sessionId;
     return [];
   }
   static async addMessage(data: { session_id: string; user_id: string; role: 'user' | 'assistant'; content: string }) {
     return { id: Math.random().toString(36).slice(2), ...data, created_at: new Date().toISOString() };
   }
   static async deleteSession(_sessionId: string, _userId: string) {
+    void _sessionId;
+    void _userId;
     return { success: true };
   }
 }

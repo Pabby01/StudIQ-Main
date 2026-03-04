@@ -1,5 +1,6 @@
-export async function rateLimit(_key: string, _limit: number, _windowMs: number) {
-  return { allowed: true, remaining: _limit, resetTime: Date.now() + _windowMs };
+export async function rateLimit(key: string, limit: number, windowMs: number) {
+  void key;
+  return { allowed: true, remaining: limit, resetTime: Date.now() + windowMs };
 }
 
 type RateLimitResult = { allowed: boolean; current: number; remaining: number; resetTime: Date; retryAfter?: number };
@@ -15,10 +16,12 @@ const makeLimiter = (): RateLimiterInstance => ({
   isAvailable() {
     return false;
   },
-  async consume(_key: string) {
+  async consume(key: string) {
+    void key;
     return { allowed: true, current: 0, remaining: 100, resetTime: new Date() };
   },
-  async getStatus(_key: string) {
+  async getStatus(key: string) {
+    void key;
     return { allowed: true, current: 0, remaining: 100, resetTime: new Date() };
   },
 });

@@ -6,7 +6,10 @@ export const Dialog: React.FC<{ open?: boolean; onOpenChange?: (v: boolean) => v
   open = true,
   onOpenChange,
   children,
-}) => <div data-open={open}>{children}</div>;
+}) => {
+  void onOpenChange;
+  return <div data-open={open}>{children}</div>;
+};
 
 export const DialogContent: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => (
   <div className={clsx('fixed inset-0 flex items-center justify-center p-4 z-50', className)}>

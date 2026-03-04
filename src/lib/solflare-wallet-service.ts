@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { PublicKey } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 
@@ -68,6 +67,7 @@ export class SolflareWalletService extends EventEmitter {
 
   async sendTransaction(params: SendTransactionParams): Promise<TransactionResult> {
     if (!this.state.isConnected) throw new WalletConnectionError('Wallet not connected', 'NOT_CONNECTED');
+    void params;
     const result: TransactionResult = { signature: Math.random().toString(36).slice(2), success: true };
     this.emit('transactionComplete', result);
     return result;

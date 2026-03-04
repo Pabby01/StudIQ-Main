@@ -1,7 +1,5 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-type LogMeta = unknown;
-
 const redact = (value: unknown): unknown => {
   if (typeof value === 'string') {
     // Redact obvious secrets and long hex/base58-like strings
@@ -28,7 +26,6 @@ const redact = (value: unknown): unknown => {
 const log = (level: LogLevel, message: string, ...meta: unknown[]) => {
   const payload = meta.length ? redact(meta.length === 1 ? meta[0] : meta) : undefined;
   const ts = new Date().toISOString();
-  // eslint-disable-next-line no-console
   console[level](`[${ts}] ${message}`, payload ?? '');
 };
 

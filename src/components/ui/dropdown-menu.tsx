@@ -13,9 +13,9 @@ export const DropdownMenu: React.FC<{ children: React.ReactNode }> = ({ children
 export const DropdownMenuTrigger: React.FC<{ asChild?: boolean; children: React.ReactNode }> = ({ asChild, children }) => {
   const ctx = useContext(C)!;
   if (asChild && React.isValidElement(children)) {
-    const el = children as React.ReactElement<any>;
+    const el = children as React.ReactElement<{ onClick?: (e: unknown) => void }>;
     return React.cloneElement(el, {
-      onClick: (e: any) => {
+      onClick: (e: unknown) => {
         el.props?.onClick?.(e);
         ctx.setOpen(!ctx.open);
       },
@@ -32,9 +32,9 @@ export const DropdownMenuContent: React.FC<{ className?: string; children: React
 
 export const DropdownMenuItem: React.FC<{ onClick?: () => void; children: React.ReactNode; disabled?: boolean; asChild?: boolean; className?: string }> = ({ onClick, children, disabled, asChild, className }) => {
   if (asChild && React.isValidElement(children)) {
-    const el = children as React.ReactElement<any>;
+    const el = children as React.ReactElement<{ onClick?: (e: unknown) => void }>;
     return React.cloneElement(el, {
-      onClick: (e: any) => {
+      onClick: (e: unknown) => {
         if (!disabled) el.props?.onClick?.(e);
       },
     });

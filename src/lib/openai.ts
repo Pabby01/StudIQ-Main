@@ -3,15 +3,21 @@ export const FINANCIAL_TUTOR_SYSTEM_PROMPT = 'You are a helpful financial tutor 
 export function getOpenAIClient() {
   return {
     chat: {
-      respond: async (_prompt: string) => 'This is a stubbed response.',
+      respond: async (prompt: string) => {
+        void prompt;
+        return 'This is a stubbed response.';
+      },
       completions: {
-        create: async (_args: any) => ({
-          choices: [
-            {
-              message: { content: 'This is a stubbed completion.' },
-            },
-          ],
-        }),
+        create: async (args: unknown) => {
+          void args;
+          return {
+            choices: [
+              {
+                message: { content: 'This is a stubbed completion.' },
+              },
+            ],
+          };
+        },
       },
     },
   };

@@ -37,9 +37,9 @@ export const SheetTrigger: React.FC<{
 }> = ({ asChild, className, children }) => {
   const ctx = useContext(Ctx)!;
   if (asChild && React.isValidElement(children)) {
-    const el = children as React.ReactElement<any>;
+    const el = children as React.ReactElement<{ onClick?: (e: unknown) => void }>;
     return React.cloneElement(el, {
-      onClick: (e: any) => {
+      onClick: (e: unknown) => {
         el.props?.onClick?.(e);
         ctx.setOpen(true);
       },
