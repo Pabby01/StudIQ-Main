@@ -24,21 +24,34 @@ export const DropdownMenuTrigger: React.FC<{ asChild?: boolean; children: React.
   return <button onClick={() => ctx.setOpen(!ctx.open)}>{children}</button>;
 };
 
-export const DropdownMenuContent: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => {
+export const DropdownMenuContent: React.FC<{ className?: string; children: React.ReactNode; align?: string }> = ({ className, children }) => {
   const ctx = useContext(C)!;
   if (!ctx.open) return null;
   return <div className={clsx('mt-2 border rounded bg-white shadow-lg', className)}>{children}</div>;
 };
 
-export const DropdownMenuItem: React.FC<{ onClick?: () => void; children: React.ReactNode }> = ({ onClick, children }) => (
-  <div className="px-3 py-2 hover:bg-gray-100 cursor-pointer" onClick={onClick}>
-    {children}
-  </div>
-);
+export const DropdownMenuItem: React.FC<{ onClick?: () => void; children: React.ReactNode; disabled?: boolean; asChild?: boolean; className?: string }> = ({ onClick, children, disabled, asChild, className }) => {
+  if (asChild && React.isValidElement(children)) {
+    const el = children as React.ReactElement<any>;
+    return React.cloneElement(el, {
+      onClick: (e: any) => {
+        if (!disabled) el.props?.onClick?.(e);
+      },
+    });
+  }
+  return (
+    <div
+      className={clsx('px-3 py-2 cursor-pointer', disabled ? 'opacity-60 pointer-events-none' : 'hover:bg-gray-100', className)}
+      onClick={() => !disabled && onClick?.()}
+    >
+      {children}
+    </div>
+  );
+};
 
 export const DropdownMenuSeparator: React.FC = () => <div className="h-px bg-gray-200 my-1" />;
-export const DropdownMenuLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="px-3 py-1 text-xs text-gray-500">{children}</div>
+export const DropdownMenuLabel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <div className={clsx('px-3 py-1 text-xs text-gray-500', className)}>{children}</div>
 );
 
 export default DropdownMenu;

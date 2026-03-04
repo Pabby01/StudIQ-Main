@@ -23,4 +23,15 @@ export const DialogTitle: React.FC<{ className?: string; children: React.ReactNo
   <h3 className={clsx('text-lg font-semibold', className)}>{children}</h3>
 );
 
+export const DialogDescription: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => (
+  <p className={clsx('text-sm text-gray-600', className)}>{children}</p>
+);
+
+export const DialogTrigger: React.FC<{ asChild?: boolean; children: React.ReactNode }> = ({ asChild, children }) => {
+  if (asChild && React.isValidElement(children)) {
+    return children as React.ReactElement;
+  }
+  return <button type="button">{children}</button>;
+};
+
 export default Dialog;

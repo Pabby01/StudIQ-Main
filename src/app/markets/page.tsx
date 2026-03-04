@@ -296,7 +296,7 @@ export default function MarketsPage() {
                     loading={loading}
                     favorites={favorites}
                     onToggleFavorite={toggleFavorite}
-                    onSort={(field) => {
+                    onSort={(field: any) => {
                       // Handle sorting logic here if needed
                       console.log('Sort by:', field);
                     }}

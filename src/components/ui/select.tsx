@@ -8,7 +8,7 @@ type Ctx = {
 };
 const SelectCtx = createContext<Ctx>({});
 
-export const Select: React.FC<{ value?: string; onValueChange?: (v: string) => void; children: React.ReactNode }> = ({
+export const Select: React.FC<{ value?: string; onValueChange?: (v: string) => void; children: React.ReactNode; disabled?: boolean }> = ({
   value,
   onValueChange,
   children,

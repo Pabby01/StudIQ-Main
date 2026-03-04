@@ -1,10 +1,12 @@
 import React from 'react';
 
-export const LoadingSpinner: React.FC<{ size?: number; className?: string }> = ({ size = 20, className }) => (
+export const LoadingSpinner: React.FC<{ size?: number | string; className?: string }> = ({ size = 20, className }) => {
+  const px = typeof size === 'string' ? (size === 'lg' ? 32 : size === 'sm' ? 16 : 20) : size;
+  return (
   <svg
     className={className}
-    width={size}
-    height={size}
+    width={px}
+    height={px}
     viewBox="0 0 38 38"
     xmlns="http://www.w3.org/2000/svg"
     stroke="#2563eb"
@@ -25,6 +27,7 @@ export const LoadingSpinner: React.FC<{ size?: number; className?: string }> = (
       </g>
     </g>
   </svg>
-);
+  );
+};
 
 export default LoadingSpinner;

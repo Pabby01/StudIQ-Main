@@ -13,8 +13,8 @@ export const Alert: React.FC<{ variant?: 'default' | 'destructive'; className?: 
   return <div className={clsx('rounded p-3', styles, className)}>{children}</div>;
 };
 
-export const AlertDescription: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="text-sm">{children}</div>
+export const AlertDescription: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <div className={clsx('text-sm', className)}>{children}</div>
 );
 
 export default Alert;

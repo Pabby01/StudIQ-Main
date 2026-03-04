@@ -214,12 +214,17 @@ export const userProfileManager = {
       })
 
       // Create default preferences
-      const dbPrefs = await ClientUserPreferencesManager.createPreferences({
+      const createdPrefs = await ClientUserPreferencesManager.createPreferences({
         user_id: normalizedAddress,
         theme: 'light',
         notifications_enabled: true,
         language: 'en'
       })
+      const dbPrefs = createdPrefs ? {
+        theme: createdPrefs.theme ?? undefined,
+        notifications_enabled: createdPrefs.notifications_enabled ?? undefined,
+        language: createdPrefs.language ?? undefined
+      } : null
 
       return await convertDbProfileToLegacy(
         {

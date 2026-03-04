@@ -25,18 +25,19 @@ const redact = (value: unknown): unknown => {
   return value;
 };
 
-const log = (level: LogLevel, message: string, meta?: unknown) => {
-  const payload = meta ? redact(meta) : undefined;
+const log = (level: LogLevel, message: string, ...meta: unknown[]) => {
+  const payload = meta.length ? redact(meta.length === 1 ? meta[0] : meta) : undefined;
   const ts = new Date().toISOString();
   // eslint-disable-next-line no-console
   console[level](`[${ts}] ${message}`, payload ?? '');
 };
 
 export const secureLogger = {
-  debug: (message: string, meta?: unknown) => log('debug', message, meta),
-  info: (message: string, meta?: unknown) => log('info', message, meta),
-  warn: (message: string, meta?: unknown) => log('warn', message, meta),
-  error: (message: string, meta?: unknown) => log('error', message, meta),
+  debug: (message: string, ...meta: unknown[]) => log('debug', message, ...meta),
+  info: (message: string, ...meta: unknown[]) => log('info', message, ...meta),
+  warn: (message: string, ...meta: unknown[]) => log('warn', message, ...meta),
+  error: (message: string, ...meta: unknown[]) => log('error', message, ...meta),
+  security: (message: string, ...meta: unknown[]) => log('warn', `[SECURITY] ${message}`, ...meta),
 };
 
 export const secureLogUtils = {

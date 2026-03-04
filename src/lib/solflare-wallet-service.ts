@@ -77,7 +77,23 @@ export class SolflareWalletService extends EventEmitter {
     if (!this.state.isConnected) throw new WalletConnectionError('Wallet not connected', 'NOT_CONNECTED');
     return new TextEncoder().encode(message);
   }
+
+  // Helpers used in wallet-data
+  isConnected(): boolean {
+    return this.state.isConnected;
+  }
+  getPublicKey(): PublicKey | null {
+    return this.state.publicKey;
+  }
+  getBalance(): number {
+    return this.state.balance;
+  }
+  getNetwork(): string {
+    return this.state.network;
+  }
+  static isValidAddress(addr: string): boolean {
+    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
+  }
 }
 
 export const solflareWalletService = new SolflareWalletService();
-
